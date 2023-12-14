@@ -49,8 +49,6 @@ defs_stepcompress = """
         , uint64_t clock);
     int stepcompress_queue_msg(struct stepcompress *sc
         , uint32_t *data, int len);
-    int stepcompress_queue_mq_msg(struct stepcompress *sc, uint64_t req_clock
-        , uint32_t *data, int len);
     int stepcompress_extract_old(struct stepcompress *sc
         , struct pull_history_steps *p, int max
         , uint64_t start_clock, uint64_t end_clock);
@@ -88,8 +86,6 @@ defs_trapq = """
         double x_r, y_r, z_r;
     };
 
-    struct trapq *trapq_alloc(void);
-    void trapq_free(struct trapq *tq);
     void trapq_append(struct trapq *tq, double print_time
         , double accel_t, double cruise_t, double decel_t
         , double start_pos_x, double start_pos_y, double start_pos_z
@@ -154,21 +150,13 @@ defs_kin_extruder = """
 """
 
 defs_kin_shaper = """
-    double input_shaper_get_step_generation_window(
-        struct stepper_kinematics *sk);
+    double input_shaper_get_step_generation_window(int n, double a[]
+        , double t[]);
     int input_shaper_set_shaper_params(struct stepper_kinematics *sk, char axis
         , int n, double a[], double t[]);
     int input_shaper_set_sk(struct stepper_kinematics *sk
         , struct stepper_kinematics *orig_sk);
     struct stepper_kinematics * input_shaper_alloc(void);
-"""
-
-defs_kin_idex = """
-    void dual_carriage_set_sk(struct stepper_kinematics *sk
-        , struct stepper_kinematics *orig_sk);
-    int dual_carriage_set_transform(struct stepper_kinematics *sk
-        , char axis, double scale, double offs);
-    struct stepper_kinematics * dual_carriage_alloc(void);
 """
 
 defs_serialqueue = """
