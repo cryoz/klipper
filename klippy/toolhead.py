@@ -3,7 +3,7 @@
 # Copyright (C) 2016-2025  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math, logging, importlib, os, json
+import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
@@ -65,17 +65,7 @@ class Move:
 
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
-        #m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
-        if msg == "Must home axis first":
-            code_key = "key95"
-        elif msg == "Must home first":
-            code_key = "key242"
-        elif msg == "Extrude when no extruder present":
-            code_key = "key114"
-        else:
-            code_key = "key243"
-        m = """{"code":"%s","msg":"%s: %.3f %.3f %.3f [%.3f]", "values":[%.3f, %.3f, %.3f, %.3f]}""" % (
-            code_key, msg, ep[0], ep[1], ep[2], ep[3], ep[0], ep[1], ep[2], ep[3])
+        m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
         return self.toolhead.printer.command_error(m)
 
     def calc_junction(self, prev_move):
@@ -514,7 +504,6 @@ class ToolHead:
             last_move.limit_next_junction_speed(speed)
 
     def move(self, newpos, speed):
-        self.record_z_pos(newpos[2])
         move = Move(self, self.commanded_pos, newpos, speed)
         if not move.move_d:
             return
@@ -770,7 +759,6 @@ class ToolHead:
     def cmd_M204(self, gcmd):
         # Use S for accel
         accel = gcmd.get_float('S', None, above=0.)
-        cmd = "M204 S%s" % accel
         if accel is None:
             # Use minimum of P and T for accel
             p = gcmd.get_float('P', None, above=0.)
