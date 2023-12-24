@@ -3,7 +3,7 @@
 # Copyright (C) 2016-2025  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math, logging, importlib, os, json
+import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
@@ -60,17 +60,7 @@ class Move:
         self.next_junction_v2 = min(self.next_junction_v2, speed**2)
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
-        #m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
-        if msg == "Must home axis first":
-            code_key = "key95"
-        elif msg == "Must home first":
-            code_key = "key242"
-        elif msg == "Extrude when no extruder present":
-            code_key = "key114"
-        else:
-            code_key = "key243"
-        m = """{"code":"%s","msg":"%s: %.3f %.3f %.3f [%.3f]", "values":[%.3f, %.3f, %.3f, %.3f]}""" % (
-            code_key, msg, ep[0], ep[1], ep[2], ep[3], ep[0], ep[1], ep[2], ep[3])
+        m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
         return self.toolhead.printer.command_error(m)
     def calc_junction(self, prev_move):
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
@@ -303,17 +293,6 @@ class ToolHead:
                    "manual_probe", "tuning_tower", "garbage_collection"]
         for module_name in modules:
             self.printer.load_object(config, module_name)
-        self.z_pos_filepath = "/usr/data/creality/userdata/config/z_pos.json"
-        self.z_pos = self.get_z_pos()
-    def get_z_pos(self):
-        z_pos = 0
-        if os.path.exists(self.z_pos_filepath):
-            try:
-                with open(self.z_pos_filepath, "r") as f:
-                    z_pos = float(json.loads(f.read()).get("z_pos", 0))
-            except Exception as err:
-                logging.error(err)
-        return z_pos
     # Print time and flush tracking
     def _advance_flush_time(self, flush_time):
         flush_time = max(flush_time, self.last_flush_time)
@@ -492,7 +471,6 @@ class ToolHead:
         if last_move is not None:
             last_move.limit_next_junction_speed(speed)
     def move(self, newpos, speed):
-        self.record_z_pos(newpos[2])
         move = Move(self, self.commanded_pos, newpos, speed)
         if not move.move_d:
             return
@@ -738,7 +716,6 @@ class ToolHead:
     def cmd_M204(self, gcmd):
         # Use S for accel
         accel = gcmd.get_float('S', None, above=0.)
-        cmd = "M204 S%s" % accel
         if accel is None:
             # Use minimum of P and T for accel
             p = gcmd.get_float('P', None, above=0.)
@@ -750,17 +727,6 @@ class ToolHead:
             accel = min(p, t)
         self.max_accel = accel
         self._calc_junction_deviation()
-        v_sd = self.printer.lookup_object('virtual_sdcard', None)
-        print_stats = self.printer.lookup_object('print_stats', None)
-        if print_stats and print_stats.state == "printing" and v_sd and v_sd.count_M204 < 3 and os.path.exists(v_sd.print_file_name_path):
-            v_sd.count_M204 += 1
-            with open(v_sd.print_file_name_path, "r") as f:
-                result = (json.loads(f.read()))
-                result["M204"] = cmd
-            with open(v_sd.print_file_name_path, "w") as f:
-                f.write(json.dumps(result))
-                f.flush()
-            logging.info("Record cmd_M204")
 
 def add_printer_objects(config):
     config.get_printer().add_object('toolhead', ToolHead(config))
