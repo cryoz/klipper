@@ -190,6 +190,14 @@ class LookAheadQueue:
         # Check if enough moves have been queued to reach the target flush time.
         return self.junction_flush <= 0.
 
+class MoveQueue:
+    def __init__(self):
+        self.lookahead_queue = LookAheadQueue()
+
+    def move_queue(self):
+        # Redirect the old move_queue method to the new lookahead method
+        return self.lookahead_queue.lookahead()
+
 BUFFER_TIME_LOW = 1.0
 BUFFER_TIME_HIGH = 2.0
 BUFFER_TIME_START = 0.250
