@@ -1431,6 +1431,10 @@ See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 #max_z_adjustment:
 #   Maximum absolute adjustment that can be applied to the Z axis [mm]. The
 #   default is 99999999.0 mm (unlimited).
+#sensor:
+#   Name of a single temperature sensor to use as a temperature source. E.g.
+#   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
+#   is used the other sensor options are not used. 
 #sensor_type:
 #sensor_pin:
 #min_temp:
