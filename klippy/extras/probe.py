@@ -23,6 +23,12 @@ class PrinterProbe:
         self.x_offset = config.getfloat('x_offset', 0.)
         self.y_offset = config.getfloat('y_offset', 0.)
         self.z_offset = config.getfloat('z_offset')
+        #self.prefix = config.getstring('alt_cmd_prefix') # alternative option for prefix/chipname
+        if len(self.name.split())>1:
+            self.prefix = "_".join(self.name.split()[1:])
+        else:
+            self.prefix = ""
+        self.chipname = self.prefix or 'probe'
         self.probe_calibrate_z = 0.
         self.multi_probe_pending = False
         self.last_state = False
@@ -49,7 +55,7 @@ class PrinterProbe:
         self.samples_retries = config.getint('samples_tolerance_retries', 0,
                                              minval=0)
         # Register z_virtual_endstop pin
-        self.printer.lookup_object('pins').register_chip('probe', self)
+        self.printer.lookup_object('pins').register_chip(self.chipname, self)
         # Register homing event handlers
         self.printer.register_event_handler("homing:homing_move_begin",
                                             self._handle_homing_move_begin)
@@ -63,15 +69,15 @@ class PrinterProbe:
                                             self._handle_command_error)
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
-        self.gcode.register_command('PROBE', self.cmd_PROBE,
+        self.gcode.register_command(self.prefix.upper()+'PROBE', self.cmd_PROBE,
                                     desc=self.cmd_PROBE_help)
-        self.gcode.register_command('QUERY_PROBE', self.cmd_QUERY_PROBE,
+        self.gcode.register_command(self.prefix.upper()+'QUERY_PROBE', self.cmd_QUERY_PROBE,
                                     desc=self.cmd_QUERY_PROBE_help)
-        self.gcode.register_command('PROBE_CALIBRATE', self.cmd_PROBE_CALIBRATE,
+        self.gcode.register_command(self.prefix.upper()+'PROBE_CALIBRATE', self.cmd_PROBE_CALIBRATE,
                                     desc=self.cmd_PROBE_CALIBRATE_help)
-        self.gcode.register_command('PROBE_ACCURACY', self.cmd_PROBE_ACCURACY,
+        self.gcode.register_command(self.prefix.upper()+'PROBE_ACCURACY', self.cmd_PROBE_ACCURACY,
                                     desc=self.cmd_PROBE_ACCURACY_help)
-        self.gcode.register_command('Z_OFFSET_APPLY_PROBE',
+        self.gcode.register_command(self.prefix.upper()+'Z_OFFSET_APPLY_PROBE',
                                     self.cmd_Z_OFFSET_APPLY_PROBE,
                                     desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
     def _handle_homing_move_begin(self, hmove):
@@ -367,6 +373,11 @@ class ProbePointsHelper:
         self.finalize_callback = finalize_callback
         self.probe_points = default_points
         self.name = config.get_name()
+        if len(self.name.split())>1:
+            self.prefix = "_".join(self.name.split()[1:])
+        else:
+            self.prefix = ""
+        self.chipname = self.prefix or 'probe'        
         self.gcode = self.printer.lookup_object('gcode')
         # Read config settings
         if default_points is None or config.get('points', None) is not None:
@@ -425,7 +436,7 @@ class ProbePointsHelper:
     def start_probe(self, gcmd):
         manual_probe.verify_no_manual_probe(self.printer)
         # Lookup objects
-        probe = self.printer.lookup_object('probe', None)
+        probe = self.printer.lookup_object(self.chipname, None)
         method = gcmd.get('METHOD', 'automatic').lower()
         self.results = []
         def_move_z = self.default_horizontal_move_z

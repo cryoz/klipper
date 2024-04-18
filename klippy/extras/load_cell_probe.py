@@ -1114,5 +1114,30 @@ def load_config(config):
     lce = LoadCellEndstop(config, lc)
     lc_probe = LoadCellPrinterProbe(config, lc, lce)
     #TODO: for multiple probes this cant be static value 'probe'
-    printer.add_object('probe', lc_probe)
+    if len(config.get_name().split())>1:
+        chipname = '_'.join(config.get_name().split()[1:])
+    else:
+        chipname = 'probe'
+    printer.add_object(chipname, lc_probe)
+    return lc_probe
+
+def load_config_prefix(config):
+    # Sensor types supported by load_cell_probe
+    sensors = {}
+    sensors.update(hx71x.HX71X_SENSOR_TYPES)
+    sensor_class = config.getchoice('sensor_type', sensors)
+    sensor = sensor_class(config)
+    lc = load_cell.LoadCell(config, sensor)
+    printer = config.get_printer()
+    name = config.get_name().split()[-1]
+    lc_name = 'load_cell' if name == "load_cell_probe" else 'load_cell ' + name
+    printer.add_object(lc_name, lc)
+    lce = LoadCellEndstop(config, lc)
+    lc_probe = LoadCellPrinterProbe(config, lc, lce)
+    #TODO: for multiple probes this cant be static value 'probe'
+    if len(config.get_name().split())>1:
+        chipname = '_'.join(config.get_name().split()[1:])
+    else:
+        chipname = 'probe'
+    printer.add_object(chipname, lc_probe)
     return lc_probe
