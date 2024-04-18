@@ -18,10 +18,12 @@ Q16_FRAC_BITS = (32 - (1 + Q16_INT_BITS))
 ######## Types
 
 
+
 class TapClassifierModule(object):
 
     def classify(self, tap_analysis):
         pass
+
 
 
 class NozzleCleanerModule(object):
@@ -108,6 +110,7 @@ class ForceLine(object):
 
     def to_dict(self):
         return {'slope': self.slope, 'intercept': self.intercept}
+
 
 
 #########################
