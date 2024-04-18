@@ -7,7 +7,7 @@
 #
 # Modified and adopted by CryoZ <hellion.zz@gmail.com>
 #
-# Version 0.0.1 / 18.04.2024
+# Version 0.0.2 / 18.04.2024
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
@@ -18,8 +18,11 @@
 # secondary_probe: lc
 
 # Example run:
-# LC_AUTO_Z_OFFSET NOMOVE=1 SAMPLES=3
-# Where NOMOVE param - disable moving to center_xy_position
+# LC_AUTO_Z_OFFSET NOMOVE=1 SET=0 SAVE=0 SAMPLES=3
+# Where:
+# NOMOVE param - disable moving to center_xy_position
+# SET param - setting calculated z_offset
+# SAVE param - saving z_offset to probe config, SAVE_CONFIG required
 # Other params - goes unmodified to probe run command
 
 import math
@@ -91,8 +94,8 @@ class AutoZOffsetCalibration:
         kin_status = toolhead.get_kinematics().get_status(curtime)
         paramoffsetadjust = gcmd.get_float('OFFSETADJUST', default=0)
         nomove = gcmd.get_int('NOMOVE', default=0)
-        noset = gcmd.get_int('NOSET', default=1)
-
+        opt_set = gcmd.get_int('SET', default=0)
+        opt_save = gcmd.get_int('SAVE', default=0)
         if ('x' not in kin_status['homed_axes']
                 or 'y' not in kin_status['homed_axes']
                 or 'z' not in kin_status['homed_axes']):
@@ -162,8 +165,10 @@ class AutoZOffsetCalibration:
                 "LC_AutoZOffset: Your calculated offset is out of config limits! (Min: %.3f mm | Max: %.3f mm) - abort..."
                 % (self.offset_min, self.offset_max))
 
-        if noset == 0:
+        if opt_set > 0:
             self.set_offset(offset)
+        if opt_save > 0:
+            self.save_offset(offset)
 
     cmd_AUTO_Z_OFFSET_help = "Test probe and nozzle sensor to calculate Z-offset for probe"
 
@@ -178,6 +183,17 @@ class AutoZOffsetCalibration:
                                                       "SET_GCODE_OFFSET",
                                                       {'Z': offset})
         self.gcode_move.cmd_SET_GCODE_OFFSET(gcmd_offset)
+
+    def save_offset(self, offset):
+        configfile = self.printer.lookup_object('configfile')
+        if offset == 0:
+            self.gcode.respond_info("Nothing to do: Z Offset is 0")
+        else:
+            self.gcode.respond_info(
+                "probe: z_offset: %.3f\n"
+                "The SAVE_CONFIG command will update the printer config file\n"
+                "with the above and restart the printer." % (offset))
+            configfile.set('probe', 'z_offset', "%.3f" % (offset, ))
 
 
 def load_config(config):
