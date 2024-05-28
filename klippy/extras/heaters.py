@@ -41,6 +41,9 @@ class Heater:
         self.lock = threading.Lock()
         self.last_temp = self.smoothed_temp = self.target_temp = 0.
         self.last_temp_time = 0.
+        # feedforward vars
+        self.extrude_boost = 0.
+        self.extrude_boost_time = 0.
         # pwm caching
         self.next_pwm_time = 0.
         self.last_pwm_value = 0.
@@ -149,7 +152,6 @@ class Heater:
         pheaters = self.printer.lookup_object('heaters')
         pheaters.set_temperature(self, temp)
 
-
 ######################################################################
 # Bang-bang control algo
 ######################################################################
@@ -208,8 +210,13 @@ class ControlPID:
         temp_err = target_temp - temp
         temp_integ = self.prev_temp_integ + temp_err * time_diff
         temp_integ = max(0., min(self.temp_integ_max, temp_integ))
+        # Feedforward dirty implemetation
+        if self.heater.extrude_boost > 0 and self.heater.extrude_boost_time > read_time:
+            ff = self.heater.extrude_boost
+        else:
+            ff = 0.
         # Calculate output
-        co = self.Kp*temp_err + self.Ki*temp_integ - self.Kd*temp_deriv
+        co = self.Kp*temp_err + self.Ki*temp_integ - self.Kd*temp_deriv + ff
         #logging.debug("pid: %f@%.3f -> diff=%f deriv=%f err=%f integ=%f co=%d",
         #    temp, read_time, temp_diff, temp_deriv, temp_err, temp_integ, co)
         bounded_co = max(0., min(self.heater_max_power, co))

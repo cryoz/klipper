@@ -173,12 +173,15 @@ class PrinterExtruder:
             or config.get('rotation_distance', None) is not None):
             self.extruder_stepper = ExtruderStepper(config)
             self.extruder_stepper.stepper.set_trapq(self.trapq)
+        # FeedForward
+        self.feedforward = config.getfloat('feedforward', 0., minval=0., maxval=1.0)
         # Register commands
         gcode = self.printer.lookup_object('gcode')
         if self.name == 'extruder':
             toolhead.set_extruder(self, 0.)
             gcode.register_command("M104", self.cmd_M104)
             gcode.register_command("M109", self.cmd_M109)
+            gcode.register_command("M309", self.cmd_M309)
         gcode.register_mux_command("ACTIVATE_EXTRUDER", "EXTRUDER",
                                    self.name, self.cmd_ACTIVATE_EXTRUDER,
                                    desc=self.cmd_ACTIVATE_EXTRUDER_help)
@@ -238,6 +241,14 @@ class PrinterExtruder:
         can_pressure_advance = False
         if axis_r > 0. and (move.axes_d[0] or move.axes_d[1]):
             can_pressure_advance = True
+        avg_speed = cruise_v
+        if avg_speed > 0:
+            self.heater.extrude_boost = avg_speed * self.feedforward
+            self.heater.extrude_boost_time = print_time + ( abs(move.end_pos[3] - move.start_pos[3]) / cruise_v )
+        else:
+            self.heater.extrude_boost = 0.
+            self.heater.extrude_boost_time = 0
+
         # Queue movement (x is extruder movement, y is pressure advance flag)
         self.trapq_append(self.trapq, print_time,
                           move.accel_t, move.cruise_t, move.decel_t,
@@ -269,6 +280,24 @@ class PrinterExtruder:
     def cmd_M109(self, gcmd):
         # Set Extruder Temperature and Wait
         self.cmd_M104(gcmd, wait=True)
+    def cmd_M309(self, gcmd):
+        # Set Extruder Feedforwaard
+        ff = gcmd.get_float('S', None, minval=0., maxval=1.)
+        index = gcmd.get_int('T', None, minval=0)
+        if index is not None:
+            section = 'extruder'
+            if index:
+                section = 'extruder%d' % (index,)
+            extruder = self.printer.lookup_object(section, None)
+            if extruder is None:
+                raise gcmd.error("Extruder not configured")
+        else:
+            extruder = self.printer.lookup_object('toolhead').get_extruder()
+        if ff is None:
+            gcmd.respond_info("Feedforward coef. = %.3f" % extruder.feedforward)
+        else:
+            extruder.feedforward = ff
+        
     cmd_ACTIVATE_EXTRUDER_help = "Change the active extruder"
     def cmd_ACTIVATE_EXTRUDER(self, gcmd):
         toolhead = self.printer.lookup_object('toolhead')
