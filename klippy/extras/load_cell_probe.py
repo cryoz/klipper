@@ -826,6 +826,8 @@ class LoadCellProbeConfigHelper:
     def __init__(self, config, load_cell_inst):
         self._printer = config.get_printer()
         self._load_cell = load_cell_inst
+        gcode = config.get_printer().lookup_object('gcode')
+        self.dummy_gcode_cmd = gcode.create_gcode_command("", "", {})
         self._sensor = load_cell_inst.get_sensor()
         self._rest_time = 1. / float(self._sensor.get_samples_per_second())
         # Collect 4 x 60hz power cycles of data to average across power noise
