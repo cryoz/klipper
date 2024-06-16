@@ -4,18 +4,19 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include "board/irq.h" // irq_disable
-#include "board/gpio.h" // gpio_out_write
-#include "board/misc.h" // timer_read_time
-#include "basecmd.h" // oid_alloc
-#include "command.h" // DECL_COMMAND
-#include "sched.h" // sched_add_timer
-#include "sensor_bulk.h" // sensor_bulk_report
+#include "board/irq.h"       // irq_disable
+#include "board/gpio.h"      // gpio_out_write
+#include "board/misc.h"      // timer_read_time
+#include "basecmd.h"         // oid_alloc
+#include "command.h"         // DECL_COMMAND
+#include "sched.h"           // sched_add_timer
+#include "sensor_bulk.h"     // sensor_bulk_report
 #include "load_cell_probe.h" // load_cell_probe_report_sample
-#include "spicmds.h" // spidev_transfer
+#include "spicmds.h"         // spidev_transfer
 #include <stdint.h>
 
-struct ads1220_adc {
+struct ads1220_adc
+{
     struct timer timer;
     uint32_t rest_ticks;
     struct gpio_in data_ready;
@@ -26,7 +27,8 @@ struct ads1220_adc {
 };
 
 // Flag types
-enum {
+enum
+{
     FLAG_PENDING = 1 << 0
 };
 
@@ -39,7 +41,8 @@ static struct task_wake wake_ads1220;
  ****************************************************************/
 
 int8_t
-ads1220_is_data_ready(struct ads1220_adc *ads1220) {
+ads1220_is_data_ready(struct ads1220_adc *ads1220)
+{
     return gpio_in_read(ads1220->data_ready) == 0;
 }
 
@@ -48,12 +51,15 @@ static uint_fast8_t
 ads1220_event(struct timer *timer)
 {
     struct ads1220_adc *ads1220 = container_of(timer, struct ads1220_adc,
-                                                timer);
+                                               timer);
     uint32_t rest_ticks = ads1220->rest_ticks;
-    if (ads1220->pending_flag) {
+    if (ads1220->pending_flag)
+    {
         ads1220->sb.possible_overflows++;
         rest_ticks *= 4;
-    } else if (ads1220_is_data_ready(ads1220)) {
+    }
+    else if (ads1220_is_data_ready(ads1220))
+    {
         ads1220->pending_flag = 1;
         sched_wake_task(&wake_ads1220);
         rest_ticks *= 8;
@@ -73,70 +79,74 @@ add_sample(struct ads1220_adc *ads1220, uint8_t oid, uint_fast32_t counts)
     ads1220->sb.data_count += BYTES_PER_SAMPLE;
 
     if ((ads1220->sb.data_count + BYTES_PER_SAMPLE) >
-            ARRAY_SIZE(ads1220->sb.data)) {
+        ARRAY_SIZE(ads1220->sb.data))
+    {
         sensor_bulk_report(&ads1220->sb, oid);
     }
 }
 
 // ADS1220 ADC query
-void
-ads1220_read_adc(struct ads1220_adc *ads1220, uint8_t oid)
+void ads1220_read_adc(struct ads1220_adc *ads1220, uint8_t oid)
 {
+    uint32_t start = timer_read_time();
     uint8_t msg[3] = {0, 0, 0};
     spidev_transfer(ads1220->spi, 1, sizeof(msg), msg);
     ads1220->pending_flag = 0;
     barrier();
 
     // create 24 bit int from bytes
-    uint32_t counts = ((uint32_t)msg[0] << 16)
-                    | ((uint32_t)msg[1] << 8)
-                    | ((uint32_t)msg[2]);
+    uint32_t counts = ((uint32_t)msg[0] << 16) | ((uint32_t)msg[1] << 8) | ((uint32_t)msg[2]);
 
     // extend 2's complement 24 bits to 32bits
     if (counts & 0x800000)
         counts |= 0xFF000000;
 
     // endstop is optional, report if enabled and no errors
-    if (ads1220->lce) {
+    if (ads1220->lce)
+    {
         load_cell_probe_report_sample(ads1220->lce, counts);
     }
 
     add_sample(ads1220, oid, counts);
+
+    // endstop is optional, report if enabled and no errors
+    if (ads1220->lce)
+    {
+        load_cell_endstop_report_sample(ads1220->lce, counts, start);
+    }
 }
 
 // Create an ads1220 sensor
-void
-command_config_ads1220(uint32_t *args)
+void command_config_ads1220(uint32_t *args)
 {
-    struct ads1220_adc *ads1220 = oid_alloc(args[0]
-                , command_config_ads1220, sizeof(*ads1220));
+    struct ads1220_adc *ads1220 = oid_alloc(args[0], command_config_ads1220, sizeof(*ads1220));
     ads1220->timer.func = ads1220_event;
     ads1220->pending_flag = 0;
     ads1220->spi = spidev_oid_lookup(args[1]);
     ads1220->data_ready = gpio_in_setup(args[2], 0);
 }
 DECL_COMMAND(command_config_ads1220, "config_ads1220 oid=%c"
-    " spi_oid=%c data_ready_pin=%u");
+                                     " spi_oid=%c data_ready_pin=%u");
 
-void
-ads1220_attach_load_cell_probe(uint32_t *args) {
+void ads1220_attach_load_cell_probe(uint32_t *args)
+{
     uint8_t oid = args[0];
     struct ads1220_adc *ads1220 = oid_lookup(oid, command_config_ads1220);
     ads1220->lce = load_cell_probe_oid_lookup(args[1]);
 }
 DECL_COMMAND(ads1220_attach_load_cell_probe,
-    "ads1220_attach_load_cell_probe oid=%c load_cell_probe_oid=%c");
+             "ads1220_attach_load_cell_probe oid=%c load_cell_probe_oid=%c");
 
 // start/stop capturing ADC data
-void
-command_query_ads1220(uint32_t *args)
+void command_query_ads1220(uint32_t *args)
 {
     uint8_t oid = args[0];
     struct ads1220_adc *ads1220 = oid_lookup(oid, command_config_ads1220);
     sched_del_timer(&ads1220->timer);
     ads1220->pending_flag = 0;
     ads1220->rest_ticks = args[1];
-    if (!ads1220->rest_ticks) {
+    if (!ads1220->rest_ticks)
+    {
         // End measurements
         return;
     }
@@ -149,8 +159,7 @@ command_query_ads1220(uint32_t *args)
 }
 DECL_COMMAND(command_query_ads1220, "query_ads1220 oid=%c rest_ticks=%u");
 
-void
-command_query_ads1220_status(const uint32_t *args)
+void command_query_ads1220_status(const uint32_t *args)
 {
     uint8_t oid = args[0];
     struct ads1220_adc *ads1220 = oid_lookup(oid, command_config_ads1220);
@@ -164,14 +173,14 @@ command_query_ads1220_status(const uint32_t *args)
 DECL_COMMAND(command_query_ads1220_status, "query_ads1220_status oid=%c");
 
 // Background task that performs measurements
-void
-ads1220_capture_task(void)
+void ads1220_capture_task(void)
 {
     if (!sched_check_wake(&wake_ads1220))
         return;
     uint8_t oid;
     struct ads1220_adc *ads1220;
-    foreach_oid(oid, ads1220, command_config_ads1220) {
+    foreach_oid(oid, ads1220, command_config_ads1220)
+    {
         if (ads1220->pending_flag)
             ads1220_read_adc(ads1220, oid);
     }
