@@ -394,6 +394,7 @@ class TapAnalysis(object):
 
     def _extract_trapq(self, trapq):
         moves, _ = trapq.extract_trapq(self.time[0], self.time[-1])
+        logging.info("moves DEBUG: %s" % (moves))
         moves_out = []
         for move in moves:
             moves_out.append(TrapezoidalMove(move))
