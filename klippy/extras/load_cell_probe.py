@@ -394,7 +394,6 @@ class TapAnalysis(object):
 
     def _extract_trapq(self, trapq):
         moves, _ = trapq.extract_trapq(self.time[0], self.time[-1])
-        logging.info("moves DEBUG: %s" % (moves))
         moves_out = []
         for move in moves:
             moves_out.append(TrapezoidalMove(move))
@@ -1023,6 +1022,7 @@ class LoadCellPrinterProbe(probe.PrinterProbe):
         ppa = TapAnalysis(self.printer, samples, self.tap_filter)
         ppa.analyze()
         # broadcast tap event data:
+        logging.info("[LOGGING] ppa.analyze(): %s" % ppa.to_dict())
         self.wh_helper.send({'tap': ppa.to_dict()})
         self._was_bad_tap = True
         if ppa.is_valid:
