@@ -1027,7 +1027,6 @@ class LoadCellPrinterProbe(probe.PrinterProbe):
         ppa = TapAnalysis(self.printer, samples, self.tap_filter)
         ppa.analyze()
         # broadcast tap event data:
-        logging.info("[LOGGING] ppa.analyze(): %s" % ppa.to_dict())
         self.wh_helper.send({'tap': ppa.to_dict()})
         self._was_bad_tap = True
         if ppa.is_valid:
