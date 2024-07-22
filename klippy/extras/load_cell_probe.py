@@ -32,6 +32,7 @@ class NozzleCleanerModule(object):
 
 # Capture and preserve a Trapezoidal Move as a python type
 class TrapezoidalMove(object):
+
     def __init__(self, move):
         # copy c data to python memory
         self.print_time = float(move.print_time)
@@ -73,6 +74,7 @@ class ForcePoint(object):
 
 # slope/intercept based line where x is time and y is force
 class ForceLine(object):
+
     def __init__(self, slope, intercept):
         self.slope = float(slope)
         self.intercept = float(intercept)
