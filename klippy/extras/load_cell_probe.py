@@ -403,7 +403,7 @@ class TapAnalysis(object):
         for move in moves:
             moves_out.append(TrapezoidalMove(move))
             # DEBUG: enable to see trapq contents
-            logging.info("trapq move: %s" % (moves_out[-1].to_dict(),))
+            # logging.info("trapq move: %s" % (moves_out[-1].to_dict(),))
         num_moves = len(moves_out)
         if num_moves < 5 or num_moves > 7:
             raise self.printer.command_error(
