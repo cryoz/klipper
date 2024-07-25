@@ -29,7 +29,6 @@ class NozzleCleanerModule(object):
 
 
 class TrapezoidalMove(object):
-
     def __init__(self, move):
         # copy c data to python memory
         self.print_time = float(move.print_time)
@@ -55,7 +54,6 @@ class TrapezoidalMove(object):
 
 # point on a time/force graph
 class ForcePoint(object):
-
     def __init__(self, time, force):
         self.time = float(time)
         self.force = float(force)
@@ -66,7 +64,6 @@ class ForcePoint(object):
 
 # slope/intercept based line where x is time and y is force
 class ForceLine(object):
-
     def __init__(self, slope, intercept):
         self.slope = float(slope)
         self.intercept = float(intercept)
@@ -389,8 +386,7 @@ class TapAnalysis(object):
         if homing_move.accel != 0.:
             raise ValidationError(COASTING_MOVE_ACCELERATION)
         # how long did it take to get to end_z?
-        homing_move.move_t = abs(
-            (halt_move.start_z - homing_move.start_z) / homing_move.start_v)
+        homing_move.move_t = abs((halt_move.start_z - homing_move.start_z) / homing_move.start_v)
         return homing_move.print_time + homing_move.move_t
 
     def _extract_trapq(self, trapq):
