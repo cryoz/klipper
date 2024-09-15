@@ -435,6 +435,22 @@ This data can be used to render:
 The `tap_angles`, `lines`, `tap_r_squared` and `points` may all be used in
 deciding of a tap was good or bad.
 
+### load_cell/dump_force
+
+This endpoint is used to subscribe to force data produced by a load_cell.
+Using this endpoint may increase Klipper's system load.
+
+A request may look like:
+`{"id": 123, "method":"load_cell/dump_force",
+"params": {"sensor": "load_cell", "response_template": {}}}`
+and might return:
+`{"id": 123,"result":{"header":["time", "force (g)", "counts", "tare_counts"]}}`
+and might later produce asynchronous messages such as:
+`{"params":{"data":[[3292.432935, 40.65, 562534, -234467]]}}`
+
+The "header" field in the initial query response is used to describe
+the fields found in later "data" responses.
+
 ### pause_resume/cancel
 
 This endpoint is similar to running the "PRINT_CANCEL" G-Code command.
