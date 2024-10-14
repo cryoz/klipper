@@ -18,12 +18,10 @@ Q16_FRAC_BITS = (32 - (1 + Q16_INT_BITS))
 ######## Types
 
 
-
 class TapClassifierModule(object):
 
     def classify(self, tap_analysis):
         pass
-
 
 
 class NozzleCleanerModule(object):
@@ -105,7 +103,6 @@ class ForceLine(object):
 
     def to_dict(self):
         return {'slope': self.slope, 'intercept': self.intercept}
-
 
 
 #########################
@@ -307,7 +304,6 @@ TAP_BREAK_CONTACT_TOO_EARLY = ('TAP_BREAK_CONTACT_TOO_EARLY', 'Tap break-contact
 TAP_BREAK_CONTACT_TOO_LATE = ('TAP_BREAK_CONTACT_TOO_LATE', 'Tap break-contact time too late, invalid')
 TAP_PULLBACK_TOO_SHORT = ('TAP_PULLBACK_TOO_SHORT', 'Tap break-contact time too late, pullback move may be too short')
 TAP_SEGMENT_TOO_SHORT = ('TAP_SEGMENT_TOO_SHORT', 'A tap segment is too short to perform r squared calculations')
-
 
 # TODO: maybe discard points can scale with sample rate from 1 to 3
 DEFAULT_DISCARD_POINTS = 3
