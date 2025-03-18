@@ -15,21 +15,24 @@ Q2_FRAC_BITS = (32 - (1 + Q2_INT_BITS))
 Q16_INT_BITS = 16
 Q16_FRAC_BITS = (32 - (1 + Q16_INT_BITS))
 
-
 ######## Types
 
+
 class TapClassifierModule(object):
+
     def classify(self, tap_analysis):
         pass
 
 
 class NozzleCleanerModule(object):
+
     def clean_nozzle(self, attempt, retries, probe_pos):
         pass
 
 
 # Capture and preserve a Trapezoidal Move as a python type
 class TrapezoidalMove(object):
+
     def __init__(self, move):
         # copy c data to python memory
         self.print_time = float(move.print_time)
@@ -45,16 +48,22 @@ class TrapezoidalMove(object):
 
     def to_dict(self):
         return {
-            'print_time': float(self.print_time), 'move_t': float(self.move_t),
-            'start_v': float(self.start_v), 'accel': float(self.accel),
-            'start_x': float(self.start_x), 'start_y': float(self.start_y),
-            'start_z': float(self.start_z), 'x_r': float(self.x_r),
-            'y_r': float(self.y_r), 'z_r': float(self.z_r)
+            'print_time': float(self.print_time),
+            'move_t': float(self.move_t),
+            'start_v': float(self.start_v),
+            'accel': float(self.accel),
+            'start_x': float(self.start_x),
+            'start_y': float(self.start_y),
+            'start_z': float(self.start_z),
+            'x_r': float(self.x_r),
+            'y_r': float(self.y_r),
+            'z_r': float(self.z_r)
         }
 
 
 # point on a time/force graph
 class ForcePoint(object):
+
     def __init__(self, time_t, force):
         self.time = float(time_t)
         self.force = float(force)
@@ -65,6 +74,7 @@ class ForcePoint(object):
 
 # slope/intercept based line where x is time and y is force
 class ForceLine(object):
+
     def __init__(self, slope, intercept):
         self.slope = float(slope)
         self.intercept = float(intercept)
@@ -103,9 +113,11 @@ class ForceLine(object):
 #########################
 # Math Support Functions
 
+
 # helper class for working with a time/force graph
 # work with subsections to find elbows and best fit lines
 class ForceGraph:
+
     def __init__(self, time_nd_64, force_nd_64):
         self.time = time_nd_64
         self.force = force_nd_64
@@ -182,8 +194,7 @@ class ForceGraph:
     # true if the reference force won't be confused for noise in the graph chunk
     # reference force must be more than 3 standard deviations away from the line
     # at the reference index
-    def is_clear_signal(self, start_idx, end_idx, line, reference_idx,
-            force_idx):
+    def is_clear_signal(self, start_idx, end_idx, line, reference_idx, force_idx):
         noise = self.noise_std(start_idx, end_idx, line)
         noise_3_std = noise * 3
         base_force = line.find_force(self.time[reference_idx])
@@ -208,8 +219,7 @@ class ForceGraph:
     #           |*----*\
     #           |       \
     #    *-----*|        \*-----*
-    def tap_decompose(self, homing_end_time, pullback_start_time,
-            pullback_cruise_time, pullback_cruise_duration):
+    def tap_decompose(self, homing_end_time, pullback_start_time, pullback_cruise_time, pullback_cruise_duration):
         homing_end_idx = self.index_near(homing_end_time)
         # use the pullback duration to trim the amount of approach data used
         homing_start_time = homing_end_time - pullback_cruise_duration
@@ -220,8 +230,7 @@ class ForceGraph:
         pullback_start_idx = self.index_near(pullback_start_time)
         pullback_cruise_idx = self.index_near(pullback_cruise_time)
         # limit use of additional data after the pullback move ends
-        pullback_end_time = (
-                pullback_cruise_time + (pullback_cruise_duration * 1.5))
+        pullback_end_time = (pullback_cruise_time + (pullback_cruise_duration * 1.5))
         pullback_end_idx = self.index_near(pullback_end_time)
 
         # l1 is the approach line
@@ -238,21 +247,18 @@ class ForceGraph:
         l3 = self.line(dwell_start_idx, pullback_start_idx)
 
         # find the approximate elbow location
-        break_contact_idx = self.find_elbow(pullback_cruise_idx,
-            pullback_end_idx)
+        break_contact_idx = self.find_elbow(pullback_cruise_idx, pullback_end_idx)
         # l5 is the line after decompression ends
         l5 = self.line(break_contact_idx, pullback_end_idx)
         # split the points between the elbow and the start of movement by force
-        midpoint_idx = self._split_by_force(pullback_cruise_idx,
-            break_contact_idx)
+        midpoint_idx = self._split_by_force(pullback_cruise_idx, break_contact_idx)
         # elbow finding success depends on their being good signal-to-noise
         # this checks if there will be enough clear data to analyze
         use_curve_optimization = False
         if midpoint_idx is not None:
-            clear_dwell = self.is_clear_signal(dwell_start_idx, dwell_end_idx,
-                l3, dwell_end_idx, midpoint_idx - 1)
-            clear_decomp = self.is_clear_signal(break_contact_idx,
-                pullback_end_idx, l5, break_contact_idx, midpoint_idx)
+            clear_dwell = self.is_clear_signal(dwell_start_idx, dwell_end_idx, l3, dwell_end_idx, midpoint_idx - 1)
+            clear_decomp = self.is_clear_signal(break_contact_idx, pullback_end_idx, l5, break_contact_idx,
+                                                midpoint_idx)
             use_curve_optimization = clear_dwell and clear_decomp
         if use_curve_optimization:
             # perform iterative refinement
@@ -262,8 +268,7 @@ class ForceGraph:
             l4_end = self.line(midpoint_idx, break_contact_idx)
             l5 = self.line(break_contact_idx, pullback_end_idx)
             # a synthetic l4 is built from 2 points:
-            l4 = self._points_to_line(l4_start.intersection(l3),
-                l4_end.intersection(l5))
+            l4 = self._points_to_line(l4_start.intersection(l3), l4_end.intersection(l5))
         else:
             # noise is too high, don't use the curve optimization
             l4 = self.line(pullback_cruise_idx, break_contact_idx)
@@ -274,16 +279,14 @@ class ForceGraph:
 
 
 class TapValidationError(Exception):
+
     def __init__(self, error_code, message):
         super(TapValidationError, self).__init__(message)
         self.error_code = error_code
         pass
 
     def to_dict(self):
-        return  {
-            'error_code': self.error_code,
-            'message': str(self)
-        }
+        return {'error_code': self.error_code, 'message': str(self)}
 
 
 # Move index constants. The PROBE_START move may be deleted from the trapq if
@@ -298,6 +301,7 @@ PULLBACK_END = -1
 
 
 class TapAnalysis(object):
+
     def __init__(self, samples, trigger_force):
         self._is_valid = False
         self._tap_pos = None
@@ -327,9 +331,7 @@ class TapAnalysis(object):
         return dist
 
     def _move_pos(self, move, dist):
-        return (move.start_x + (move.x_r * dist),
-        move.start_y + (move.y_r * dist),
-        move.start_z + (move.z_r * dist))
+        return (move.start_x + (move.x_r * dist), move.start_y + (move.y_r * dist), move.start_z + (move.z_r * dist))
 
     # get an XYZ position from the toolhead position history
     # positions before/after the captured history are assumed to be stationary
@@ -361,17 +363,15 @@ class TapAnalysis(object):
         # acceleration should be 0! This is the 'coasting' move:
         if homing_move.accel != 0.:
             raise TapValidationError('COASTING_MOVE_ACCELERATION',
-                'Probing move is accelerating/decelerating which is invalid')
+                                     'Probing move is accelerating/decelerating which is invalid')
         # how long did it take to get to end_z?
-        homing_move.move_t = abs(
-            (halt_move.start_z - homing_move.start_z) / homing_move.start_v)
+        homing_move.move_t = abs((halt_move.start_z - homing_move.start_z) / homing_move.start_v)
         return homing_move.print_time + homing_move.move_t
 
     # extract and save TrapQueue moves
     def _extract_trapq(self, printer):
         trapq = printer.lookup_object('motion_report').trapqs['toolhead']
-        moves, _ = trapq.extract_trapq(float(self._time[0]),
-            float(self._time[-1]))
+        moves, _ = trapq.extract_trapq(float(self._time[0]), float(self._time[-1]))
         for move in moves:
             self._moves.append(TrapezoidalMove(move))
             # DEBUG: enable to see trapq contents
@@ -382,22 +382,16 @@ class TapAnalysis(object):
         self._extract_trapq(printer)
         num_moves = len(self._moves)
         if num_moves < 5:
-            raise TapValidationError('TOO_FEW_PROBING_MOVES',
-                '5 Probing moves expected but there were fewer')
+            raise TapValidationError('TOO_FEW_PROBING_MOVES', '5 Probing moves expected but there were fewer')
         elif num_moves > 6:
-            raise TapValidationError('TOO_MANY_PROBING_MOVES',
-                'More than 6 probing moves were found during the tap')
+            raise TapValidationError('TOO_MANY_PROBING_MOVES', 'More than 6 probing moves were found during the tap')
         self._home_end_time = self._recalculate_homing_end()
         self._pullback_start_time = self._moves[PULLBACK_START].print_time
-        self._pullback_end_time = (
-                self._moves[PULLBACK_END].print_time + self._moves[
-            PULLBACK_END].move_t)
+        self._pullback_end_time = (self._moves[PULLBACK_END].print_time + self._moves[PULLBACK_END].move_t)
         self._pullback_cruise_time = self._moves[PULLBACK_CRUISE].print_time
-        self._pullback_duration = (
-                self._pullback_end_time - self._pullback_start_time)
-        lines, i, j = self._force_graph.tap_decompose(self._home_end_time,
-            self._pullback_start_time, self._pullback_cruise_time,
-            self._pullback_duration)
+        self._pullback_duration = (self._pullback_end_time - self._pullback_start_time)
+        lines, i, j = self._force_graph.tap_decompose(self._home_end_time, self._pullback_start_time,
+                                                      self._pullback_cruise_time, self._pullback_duration)
         self._homing_start_index = i
         self._pullback_end_index = j
         self.set_tap_lines(lines)
@@ -409,19 +403,15 @@ class TapAnalysis(object):
     # validate that a set of ForcePoint objects are in chronological order
     def _validate_order(self):
         p = self._tap_points
-        if not (p[0].time < p[1].time < p[2].time < p[3].time < p[4].time
-                < p[5].time):
-            raise TapValidationError('TAP_CHRONOLOGY',
-                'Tap points are out of chronological order')
+        if not (p[0].time < p[1].time < p[2].time < p[3].time < p[4].time < p[5].time):
+            raise TapValidationError('TAP_CHRONOLOGY', 'Tap points are out of chronological order')
 
     # Validate that the rotations between lines form a tap shape
     def _validate_tap_shape(self):
         a1, a2, a3, a4 = self._tap_angles
         # with two polarities there are 2 valid tap shapes:
-        if not ((a1 > 0 and a2 < 0 and a3 < 0 and a4 > 0) or (
-                a1 < 0 and a2 > 0 and a3 > 0 and a4 < 0)):
-            raise TapValidationError('TAP_SHAPE_INVALID',
-                'Force data does not form a tap shape')
+        if not ((a1 > 0 and a2 < 0 and a3 < 0 and a4 > 0) or (a1 < 0 and a2 > 0 and a3 > 0 and a4 < 0)):
+            raise TapValidationError('TAP_SHAPE_INVALID', 'Force data does not form a tap shape')
 
     # The proposed break contact point must fall inside the
     # first 3/4s of the pullback move
@@ -431,33 +421,28 @@ class TapAnalysis(object):
         end_t = self._pullback_end_time
         safety_margin = (end_t - start_t) / 4.
         if break_contact_time < start_t:
-            raise TapValidationError('TAP_BREAK_CONTACT_TOO_EARLY',
-                'Tap break-contact time is too early')
+            raise TapValidationError('TAP_BREAK_CONTACT_TOO_EARLY', 'Tap break-contact time is too early')
         elif break_contact_time > end_t:
-            raise TapValidationError('TAP_BREAK_CONTACT_TOO_LATE',
-                'Tap break-contact time is too late')
+            raise TapValidationError('TAP_BREAK_CONTACT_TOO_LATE', 'Tap break-contact time is too late')
         elif break_contact_time > (end_t - safety_margin):
             raise TapValidationError('TAP_PULLBACK_TOO_SHORT',
-                'Tap break-contact time is too late, pullback move may be too '
-                'short')
+                                     'Tap break-contact time is too late, pullback move may be too '
+                                     'short')
 
     def _calculate_points(self):
         l1, l2, l3, l4, l5 = self._tap_lines
         # Line intersections:
-        p0 = ForcePoint(self._time[self._homing_start_index],
-            l1.find_force(self._time[self._homing_start_index]))
+        p0 = ForcePoint(self._time[self._homing_start_index], l1.find_force(self._time[self._homing_start_index]))
         p1 = l1.intersection(l2)
         p2 = l2.intersection(l3)
         p3 = l3.intersection(l4)
         p4 = l4.intersection(l5)
-        p5 = ForcePoint(self._time[self._pullback_end_index],
-            l5.find_force(self._time[self._pullback_end_index]))
+        p5 = ForcePoint(self._time[self._pullback_end_index], l5.find_force(self._time[self._pullback_end_index]))
         self._tap_points = [p0, p1, p2, p3, p4, p5]
 
     def _calculate_angles(self):
         l1, l2, l3, l4, l5 = self._tap_lines
-        self._tap_angles = [l1.angle(l2), l2.angle(l3), l3.angle(l4),
-            l4.angle(l5)]
+        self._tap_angles = [l1.angle(l2), l2.angle(l3), l3.angle(l4), l4.angle(l5)]
 
     # 'read only' fields:
     def get_time(self):
@@ -543,14 +528,14 @@ class TapAnalysis(object):
 # Orchestrate TapAnalysis and TapClassifier. Handle timing, error capture,
 # event broadcast, clients & logging
 class TapAnalysisHelper:
+
     def __init__(self, printer, name, tap_classifier):
         self._printer = printer
         self._tap_classifier = tap_classifier
         # webhooks support
         self._clients = load_cell.ApiClientHelper(printer)
         header = {"header": ["probe_tap_event"]}
-        self._clients.add_mux_endpoint("load_cell_probe/dump_taps",
-            "load_cell_probe", name, header)
+        self._clients.add_mux_endpoint("load_cell_probe/dump_taps", "load_cell_probe", name, header)
 
     def analyze(self, samples, trigger_force):
         t_start = time.time()
@@ -590,8 +575,18 @@ class TapAnalysisHelper:
 # Access a parameter from config or GCode command via a consistent interface
 # stores name and constraints to keep things DRY
 class ParamHelper:
-    def __init__(self, config, name, type_name, default=None, minval=None,
-            maxval=None, above=None, below=None, max_len=None, choices=None):
+
+    def __init__(self,
+                 config,
+                 name,
+                 type_name,
+                 default=None,
+                 minval=None,
+                 maxval=None,
+                 above=None,
+                 below=None,
+                 max_len=None,
+                 choices=None):
         self._config_section = config.get_name()
         self._config_error = config.error
         self.name = name
@@ -621,28 +616,24 @@ class ParamHelper:
     # support for validating individual options in a list of floats
     def _validate_float_list(self, gcmd, values, above, below):
         if gcmd:
-            description = ("Error on '%s': %s" % (
-                gcmd.get_commandline(), self._get_name(gcmd)))
+            description = ("Error on '%s': %s" % (gcmd.get_commandline(), self._get_name(gcmd)))
             error = gcmd.error
         else:
-            description = ("Option '%s' in section '%s'" % (
-                self._get_name(gcmd), self._config_section))
+            description = ("Option '%s' in section '%s'" % (self._get_name(gcmd), self._config_section))
             error = self._config_error
         if self.max_len is not None and len(values) > self.max_len:
-            raise error(
-                "%s has maximum length %s" % (description, self.max_len))
+            raise error("%s has maximum length %s" % (description, self.max_len))
         for value in values:
             self._validate_float(description, error, value, above, below)
 
     def _get_int(self, config, gcmd, minval, maxval):
         get = gcmd.get_int if gcmd else config.getint
-        return get(self._get_name(gcmd), self.value, minval or self.minval,
-            maxval or self.maxval)
+        return get(self._get_name(gcmd), self.value, minval or self.minval, maxval or self.maxval)
 
     def _get_float(self, config, gcmd, minval, maxval, above, below):
         get = gcmd.get_float if gcmd else config.getfloat
-        return get(self._get_name(gcmd), self.value, minval or self.minval,
-            maxval or self.maxval, above or self.above, below or self.below)
+        return get(self._get_name(gcmd), self.value, minval or self.minval, maxval or self.maxval, above or self.above,
+                   below or self.below)
 
     def _get_choice(self, config, gcmd):
         name = self._get_name(gcmd)
@@ -653,11 +644,9 @@ class ParamHelper:
                                  "choice" % (c, name))
             return self.choices[c]
         else:
-            value = config.getchoice(name, self.choices,
-                default=self.default_choice)
+            value = config.getchoice(name, self.choices, default=self.default_choice)
             # config returns the value, reverse it to get the key:
-            self.default_choice = list(self.choices.keys())[
-                list(self.choices.values()).index(value)]
+            self.default_choice = list(self.choices.keys())[list(self.choices.values()).index(value)]
             return value
 
     def _get_float_list(self, config, gcmd, above, below):
@@ -675,17 +664,14 @@ class ParamHelper:
             try:
                 float_list = [float(p.strip()) for p in value.split(',')]
             except:
-                raise gcmd.error("Error on '%s': unable to parse %s" % (
-                    gcmd.get_commandline(), value))
+                raise gcmd.error("Error on '%s': unable to parse %s" % (gcmd.get_commandline(), value))
         else:
-            float_list = config.getfloatlist(self._get_name(gcmd),
-                default=default)
+            float_list = config.getfloatlist(self._get_name(gcmd), default=default)
         if float_list:
             self._validate_float_list(gcmd, float_list, above, below)
         return float_list
 
-    def get(self, gcmd=None, minval=None, maxval=None, above=None, below=None,
-            config=None):
+    def get(self, gcmd=None, minval=None, maxval=None, above=None, below=None, config=None):
         if config is None and gcmd is None:
             return self.value
         if self._type_name == 'int':
@@ -699,31 +685,33 @@ class ParamHelper:
 
 
 def intParamHelper(config, name, default=None, minval=None, maxval=None):
-    return ParamHelper(config, name, 'int', default, minval=minval,
-        maxval=maxval)
+    return ParamHelper(config, name, 'int', default, minval=minval, maxval=maxval)
 
 
-def floatParamHelper(config, name, default=None, minval=None, maxval=None,
-        above=None, below=None):
-    return ParamHelper(config, name, 'float', default, minval=minval,
-        maxval=maxval, above=above, below=below)
+def floatParamHelper(config, name, default=None, minval=None, maxval=None, above=None, below=None):
+    return ParamHelper(config, name, 'float', default, minval=minval, maxval=maxval, above=above, below=below)
 
 
 def choiceParamHelper(config, name, default, choices):
     return ParamHelper(config, name, 'choice', default=default, choices=choices)
 
 
-def floatListParamHelper(config, name, default=None, above=None, below=None,
-        max_len=None):
-    return ParamHelper(config, name, 'float_list', default, above=above,
-        below=below, max_len=max_len)
+def floatListParamHelper(config, name, default=None, above=None, below=None, max_len=None):
+    return ParamHelper(config, name, 'float_list', default, above=above, below=below, max_len=max_len)
 
 
 # container for filter parameters
 # allows different filter configurations to be compared
 class ContinuousTareFilter:
-    def __init__(self, sps=None, drift=None, drift_delay=None, buzz=None,
-            buzz_delay=None, notches=None, notch_quality=None):
+
+    def __init__(self,
+                 sps=None,
+                 drift=None,
+                 drift_delay=None,
+                 buzz=None,
+                 buzz_delay=None,
+                 notches=None,
+                 notch_quality=None):
         self.sps = sps
         self.drift = drift
         self.drift_delay = drift_delay
@@ -735,54 +723,56 @@ class ContinuousTareFilter:
     def __eq__(self, other):
         if not isinstance(other, ContinuousTareFilter):
             return False
-        return (
-                self.sps == other.sps and self.drift == other.drift and
-                self.drift_delay == other.drift_delay and self.buzz ==
-                other.buzz and self.buzz_delay == other.buzz_delay and
-                self.notches == other.notches and self.notch_quality ==
-                other.notch_quality)
+        return (self.sps == other.sps and self.drift == other.drift and self.drift_delay == other.drift_delay
+                and self.buzz == other.buzz and self.buzz_delay == other.buzz_delay and self.notches == other.notches
+                and self.notch_quality == other.notch_quality)
 
     # create a filter design from the parameters
     def design_filter(self, error_func):
-        design = sos_filter.DigitalFilter(self.sps, error_func, self.drift,
-            self.drift_delay, self.buzz, self.buzz_delay, self.notches,
-            self.notch_quality)
-        fixed_filter = sos_filter.FixedPointSosFilter(
-            design.get_filter_sections(), design.get_initial_state(),
-            Q2_INT_BITS, Q16_INT_BITS)
+        design = sos_filter.DigitalFilter(self.sps, error_func, self.drift, self.drift_delay, self.buzz,
+                                          self.buzz_delay, self.notches, self.notch_quality)
+        fixed_filter = sos_filter.FixedPointSosFilter(design.get_filter_sections(), design.get_initial_state(),
+                                                      Q2_INT_BITS, Q16_INT_BITS)
         return fixed_filter
 
 
 # Combine ContinuousTareFilter and SosFilter into an easy-to-use class
 class ContinuousTareFilterHelper:
+
     def __init__(self, config, sensor, cmd_queue):
         self._sensor = sensor
         self._sps = self._sensor.get_samples_per_second()
         max_filter_frequency = math.floor(self._sps / 2.)
         # setup filter parameters
         self._drift_param = floatParamHelper(config,
-            "drift_filter_cutoff_frequency", default=None, minval=0.1,
-            maxval=20.0)
-        self._drift_delay_param = intParamHelper(config, "drift_filter_delay",
-            default=2, minval=1, maxval=2)
+                                             "drift_filter_cutoff_frequency",
+                                             default=None,
+                                             minval=0.1,
+                                             maxval=20.0)
+        self._drift_delay_param = intParamHelper(config, "drift_filter_delay", default=2, minval=1, maxval=2)
         self._buzz_param = floatParamHelper(config,
-            "buzz_filter_cutoff_frequency", default=None,
-            above=min(80.0, max_filter_frequency - 1.0),
-            below=max_filter_frequency)
-        self._buzz_delay_param = intParamHelper(config, "buzz_filter_delay",
-            default=2, minval=1, maxval=2)
+                                            "buzz_filter_cutoff_frequency",
+                                            default=None,
+                                            above=min(80.0, max_filter_frequency - 1.0),
+                                            below=max_filter_frequency)
+        self._buzz_delay_param = intParamHelper(config, "buzz_filter_delay", default=2, minval=1, maxval=2)
         self._notches_param = floatListParamHelper(config,
-            "notch_filter_frequencies", default=[], above=0.,
-            below=max_filter_frequency, max_len=2)
+                                                   "notch_filter_frequencies",
+                                                   default=[],
+                                                   above=0.,
+                                                   below=max_filter_frequency,
+                                                   max_len=2)
         self._notch_quality_param = floatParamHelper(config,
-            "notch_filter_quality", default=2.0, minval=0.5, maxval=6.0)
+                                                     "notch_filter_quality",
+                                                     default=2.0,
+                                                     minval=0.5,
+                                                     maxval=6.0)
         # filter design specified in the config file, used for defaults
         self._config_design = ContinuousTareFilter()  # empty filter
         self._config_design = self._build_filter()
         # filter design currently inside the MCU
         self._active_design = self._config_design
-        self._sos_filter = self._create_filter(
-            self._active_design.design_filter(config.error), cmd_queue)
+        self._sos_filter = self._create_filter(self._active_design.design_filter(config.error), cmd_queue)
 
     def _build_filter(self, gcmd=None):
         drift = self._drift_param.get(gcmd)
@@ -792,12 +782,10 @@ class ContinuousTareFilterHelper:
         # notches must be between drift and buzz:
         notches = self._notches_param.get(gcmd, above=drift, below=buzz)
         notch_quality = self._notch_quality_param.get(gcmd)
-        return ContinuousTareFilter(self._sps, drift, drift_delay, buzz,
-            buzz_delay, notches, notch_quality)
+        return ContinuousTareFilter(self._sps, drift, drift_delay, buzz, buzz_delay, notches, notch_quality)
 
     def _create_filter(self, fixed_filter, cmd_queue):
-        return sos_filter.SosFilter(self._sensor.get_mcu(), cmd_queue,
-            fixed_filter, 4)
+        return sos_filter.SosFilter(self._sensor.get_mcu(), cmd_queue, fixed_filter, 4)
 
     def update_from_command(self, gcmd, cq=None):
         gcmd_filter = self._build_filter(gcmd)
@@ -805,8 +793,7 @@ class ContinuousTareFilterHelper:
         if self._active_design == gcmd_filter:
             return
         # update MCU filter from GCode command
-        self._sos_filter.change_filter(
-            self._active_design.design_filter(gcmd.error))
+        self._sos_filter.change_filter(self._active_design.design_filter(gcmd.error))
 
     def get_sos_filter(self):
         return self._sos_filter
@@ -817,8 +804,7 @@ def check_sensor_errors(results, printer):
     samples, errors = results
     if errors:
         raise printer.command_error("Load cell sensor reported errors while"
-                                    " probing: %i errors, %i overflows" % (
-                                        errors[0], errors[1]))
+                                    " probing: %i errors, %i overflows" % (errors[0], errors[1]))
     return samples
 
 
@@ -828,39 +814,50 @@ STRATEGY_IGNORE = 1
 STRATEGY_RETRY = 2
 STRATEGY_CIRCLE = 3
 STRATEGY_CHOICES = {
-    'FAIL': STRATEGY_FAIL, 'IGNORE': STRATEGY_IGNORE,
-    'RETRY': STRATEGY_RETRY, 'CIRCLE': STRATEGY_CIRCLE
+    'FAIL': STRATEGY_FAIL,
+    'IGNORE': STRATEGY_IGNORE,
+    'RETRY': STRATEGY_RETRY,
+    'CIRCLE': STRATEGY_CIRCLE
 }
 
 
 class LoadCellProbeConfigHelper:
+
     def __init__(self, config, load_cell_inst):
         self._printer = config.get_printer()
         self._load_cell = load_cell_inst
         self._sensor = load_cell_inst.get_sensor()
         self._rest_time = 1. / float(self._sensor.get_samples_per_second())
         # Collect 4 x 60hz power cycles of data to average across power noise
-        self._tare_time_param = floatParamHelper(config, 'tare_time',
-            default=4. / 60., minval=0.01, maxval=1.0)
+        self._tare_time_param = floatParamHelper(config, 'tare_time', default=4. / 60., minval=0.01, maxval=1.0)
         # triggering options
-        self._trigger_force_param = intParamHelper(config, 'trigger_force',
-            default=75, minval=10, maxval=250)
+        self._trigger_force_param = intParamHelper(config, 'trigger_force', default=75, minval=10, maxval=250)
         self._force_safety_limit_param = intParamHelper(config,
-            'force_safety_limit', minval=100, maxval=5000, default=2000)
+                                                        'force_safety_limit',
+                                                        minval=100,
+                                                        maxval=5000,
+                                                        default=2000)
         # pullback move
         self._pullback_distance_param = floatParamHelper(config,
-            'pullback_distance', minval=0.01, maxval=2.0, default=0.2)
+                                                         'pullback_distance',
+                                                         minval=0.01,
+                                                         maxval=2.0,
+                                                         default=0.2)
         sps = self._sensor.get_samples_per_second()
-        self._pullback_speed_param = floatParamHelper(config, 'pullback_speed',
-            minval=0.1, maxval=1.0, default=sps * 0.001)
-        self._bad_tap_strategy_param = choiceParamHelper(config,
-            'bad_tap_strategy', 'RETRY', STRATEGY_CHOICES)
+        self._pullback_speed_param = floatParamHelper(config,
+                                                      'pullback_speed',
+                                                      minval=0.1,
+                                                      maxval=1.0,
+                                                      default=sps * 0.001)
+        self._bad_tap_strategy_param = choiceParamHelper(config, 'bad_tap_strategy', 'RETRY', STRATEGY_CHOICES)
         max_bad_taps = len(TapLocation.LOOKUP)
-        self._bad_tap_retries_param = intParamHelper(config, 'bad_tap_retries',
-            default=6, minval=0, maxval=max_bad_taps)
+        self._bad_tap_retries_param = intParamHelper(config,
+                                                     'bad_tap_retries',
+                                                     default=6,
+                                                     minval=0,
+                                                     maxval=max_bad_taps)
         # most probes don't move horizontally, but this one does
-        self._retry_speed = floatParamHelper(config, 'retry_speed',
-            above=0.1, default=50.)
+        self._retry_speed = floatParamHelper(config, 'retry_speed', above=0.1, default=50.)
 
     def get_tare_samples(self, gcmd=None):
         tare_time = self._tare_time_param.get(gcmd)
@@ -924,8 +921,7 @@ class McuLoadCellProbe:
     ERROR_OVERFLOW = mcu.MCU_trsync.REASON_COMMS_TIMEOUT + 2
     ERROR_WATCHDOG = mcu.MCU_trsync.REASON_COMMS_TIMEOUT + 3
 
-    def __init__(self, config, load_cell_inst, sos_filter_inst, config_helper,
-            trigger_dispatch):
+    def __init__(self, config, load_cell_inst, sos_filter_inst, config_helper, trigger_dispatch):
         self._printer = config.get_printer()
         self._load_cell = load_cell_inst
         self._sos_filter = sos_filter_inst
@@ -945,20 +941,21 @@ class McuLoadCellProbe:
 
     def _config_commands(self):
         self._sos_filter.create_filter()
-        self._mcu.add_config_cmd(
-            "config_load_cell_probe oid=%d sos_filter_oid=%d" % (
-                self._oid, self._sos_filter.get_oid()))
+        self._mcu.add_config_cmd("config_load_cell_probe oid=%d sos_filter_oid=%d" %
+                                 (self._oid, self._sos_filter.get_oid()))
 
     def _build_config(self):
         # Lookup commands
-        self._query_cmd = self._mcu.lookup_query_command(
-            "load_cell_probe_query_state oid=%c",
-            "load_cell_probe_state oid=%c is_homing_trigger=%c "
-            "trigger_ticks=%u", oid=self._oid, cq=self._cmd_queue)
+        self._query_cmd = self._mcu.lookup_query_command("load_cell_probe_query_state oid=%c",
+                                                         "load_cell_probe_state oid=%c is_homing_trigger=%c "
+                                                         "trigger_ticks=%u",
+                                                         oid=self._oid,
+                                                         cq=self._cmd_queue)
         self._set_range_cmd = self._mcu.lookup_command(
             "load_cell_probe_set_range"
             " oid=%c safety_counts_min=%i safety_counts_max=%i tare_counts=%i"
-            " trigger_grams=%u grams_per_count=%i", cq=self._cmd_queue)
+            " trigger_grams=%u grams_per_count=%i",
+            cq=self._cmd_queue)
         self._home_cmd = self._mcu.lookup_command(
             "load_cell_probe_home oid=%c trsync_oid=%c trigger_reason=%c"
             " error_reason=%c clock=%u rest_ticks=%u timeout=%u",
@@ -985,9 +982,12 @@ class McuLoadCellProbe:
         self._load_cell.tare(tare_counts)
         # update internal tare value
         safety_min, safety_max = self._config_helper.get_safety_range(gcmd)
-        args = [self._oid, safety_min, safety_max, int(tare_counts),
+        args = [
+            self._oid, safety_min, safety_max,
+            int(tare_counts),
             self._config_helper.get_trigger_force_grams(gcmd),
-            self._config_helper.get_grams_per_count()]
+            self._config_helper.get_grams_per_count()
+        ]
         self._set_range_cmd.send(args)
         self._sos_filter.reset_filter()
 
@@ -995,9 +995,12 @@ class McuLoadCellProbe:
         clock = self._mcu.print_time_to_clock(print_time)
         rest_time = self._config_helper.get_rest_time()
         rest_ticks = self._mcu.seconds_to_clock(rest_time)
-        self._home_cmd.send([self._oid, self._dispatch.get_oid(),
-            mcu.MCU_trsync.REASON_ENDSTOP_HIT, self.ERROR_SAFETY_RANGE, clock,
-            rest_ticks, self.WATCHDOG_MAX], reqclock=clock)
+        self._home_cmd.send([
+            self._oid,
+            self._dispatch.get_oid(), mcu.MCU_trsync.REASON_ENDSTOP_HIT, self.ERROR_SAFETY_RANGE, clock, rest_ticks,
+            self.WATCHDOG_MAX
+        ],
+                            reqclock=clock)
 
     def clear_home(self):
         params = self._query_cmd.send([self._oid])
@@ -1012,17 +1015,16 @@ class McuLoadCellProbe:
 class LoadCellProbingMove:
     ERROR_MAP = {
         mcu.MCU_trsync.REASON_COMMS_TIMEOUT: "Communication timeout during "
-                                             "homing",
+        "homing",
         McuLoadCellProbe.ERROR_SAFETY_RANGE: "Load Cell Probe Error: load "
-                                             "exceeds safety limit",
+        "exceeds safety limit",
         McuLoadCellProbe.ERROR_OVERFLOW: "Load Cell Probe Error: fixed point "
-                                         "math overflow",
+        "math overflow",
         McuLoadCellProbe.ERROR_WATCHDOG: "Load Cell Probe Error: timed out "
-                                         "waiting for sensor data"
+        "waiting for sensor data"
     }
 
-    def __init__(self, config, mcu_load_cell_probe, param_helper,
-            continuous_tare_filter_helper, config_helper):
+    def __init__(self, config, mcu_load_cell_probe, param_helper, continuous_tare_filter_helper, config_helper):
         self._printer = config.get_printer()
         self._mcu_load_cell_probe = mcu_load_cell_probe
         self._param_helper = param_helper
@@ -1065,8 +1067,7 @@ class LoadCellProbingMove:
         self._mcu_load_cell_probe.home_start(print_time)
         return trigger_completion
 
-    def home_start(self, print_time, sample_time, sample_count, rest_time,
-            triggered=True):
+    def home_start(self, print_time, sample_time, sample_count, rest_time, triggered=True):
         return self._home_start(print_time)
 
     def home_wait(self, home_end_time):
@@ -1076,7 +1077,7 @@ class LoadCellProbingMove:
         # clear the homing state so it stops processing samples
         self._last_trigger_time = self._mcu_load_cell_probe.clear_home()
         if res >= mcu.MCU_trsync.REASON_COMMS_TIMEOUT:
-            error = "Load Cell Probe Error: unknown reason code %i" % (res,)
+            error = "Load Cell Probe Error: unknown reason code %i" % (res, )
             if res in self.ERROR_MAP:
                 error = self.ERROR_MAP[res]
             raise self._printer.command_error(error)
@@ -1122,8 +1123,8 @@ class LoadCellProbingMove:
 
 # Perform a single complete tap
 class TappingMove:
-    def __init__(self, config, load_cell_probing_move, tap_analysis_helper,
-            config_helper):
+
+    def __init__(self, config, load_cell_probing_move, tap_analysis_helper, config_helper):
         self._printer = config.get_printer()
         self._load_cell_probing_move = load_cell_probing_move
         self._tap_analysis_helper = tap_analysis_helper
@@ -1167,37 +1168,31 @@ class TappingMove:
         return self._last_analysis
 
     def get_status(self, eventtime):
-        return {
-            'last_z_result': self._last_result,
-            'is_last_tap_valid': self._is_last_result_valid
-        }
+        return {'last_z_result': self._last_result, 'is_last_tap_valid': self._is_last_result_valid}
 
 
 # Probe `activate_gcode` and `deactivate_gcode` support
 class ProbeActivationHelper:
+
     def __init__(self, config):
         self._printer = config.get_printer()
         gcode_macro = self._printer.load_object(config, 'gcode_macro')
-        self._activate_gcode = gcode_macro.load_template(
-            config, 'activate_gcode', '')
-        self._deactivate_gcode = gcode_macro.load_template(
-            config, 'deactivate_gcode', '')
+        self._activate_gcode = gcode_macro.load_template(config, 'activate_gcode', '')
+        self._deactivate_gcode = gcode_macro.load_template(config, 'deactivate_gcode', '')
 
     def activate_probe(self):
         toolhead = self._printer.lookup_object('toolhead')
         start_pos = toolhead.get_position()
         self._activate_gcode.run_gcode_from_command()
         if toolhead.get_position()[:3] != start_pos[:3]:
-            raise self._printer.command_error(
-                "Toolhead moved during probe activate_gcode script")
+            raise self._printer.command_error("Toolhead moved during probe activate_gcode script")
 
     def deactivate_probe(self):
         toolhead = self._printer.lookup_object('toolhead')
         start_pos = toolhead.get_position()
         self._deactivate_gcode.run_gcode_from_command()
         if toolhead.get_position()[:3] != start_pos[:3]:
-            raise self._printer.command_error(
-                "Toolhead moved during probe deactivate_gcode script")
+            raise self._printer.command_error("Toolhead moved during probe deactivate_gcode script")
 
 
 # build a table of x,y locations around a zero point to tap at
@@ -1249,8 +1244,8 @@ class TapLocation:
 
 # ProbeSession that implements Tap and retry logic
 class TapSession:
-    def __init__(self, config, tapping_move, probe_params_helper,
-            nozzle_cleaner, config_helper):
+
+    def __init__(self, config, tapping_move, probe_params_helper, nozzle_cleaner, config_helper):
         self._printer = config.get_printer()
         self._tapping_move = tapping_move
         self._probe_params_helper = probe_params_helper
@@ -1275,11 +1270,9 @@ class TapSession:
         if self._nozzle_cleaner_module is None:
             return
         start_pos = toolhead.get_position()
-        self._nozzle_cleaner_module.clean_nozzle(retries, bad_taps,
-            start_pos)
+        self._nozzle_cleaner_module.clean_nozzle(retries, bad_taps, start_pos)
         if toolhead.get_position()[:3] != start_pos[:3]:
-            raise self._printer.command_error(
-                "Toolhead not returned after nozzle cleaning")
+            raise self._printer.command_error("Toolhead not returned after nozzle cleaning")
 
     def _retract(self, params, toolhead):
         pos = toolhead.get_position()
@@ -1289,13 +1282,11 @@ class TapSession:
     # move to probing x,y location for circular retry strategy
     def _horizontal_move(self, location, gcmd, toolhead):
         x, y = location.get_position()
-        toolhead.manual_move([x, y, None],
-            self._config_helper.get_retry_speed(gcmd))
+        toolhead.manual_move([x, y, None], self._config_helper.get_retry_speed(gcmd))
 
     def _move_right(self, gcmd, toolhead):
         pos = toolhead.get_position()
-        toolhead.manual_move([pos[0] + 2.0, pos[1], None],
-            self._config_helper.get_retry_speed(gcmd))
+        toolhead.manual_move([pos[0] + 2.0, pos[1], None], self._config_helper.get_retry_speed(gcmd))
 
     # get/update TapLocation tracking
     def _get_location(self, bad_taps, toolhead):
@@ -1317,10 +1308,8 @@ class TapSession:
 
     def _console_log_bad_tap(self, gcmd, will_retry):
         tap_analysis = self._tapping_move.get_last_analysis()
-        gcmd.respond_info('Bad tap detected: %s.%s' % (
-            tap_analysis.get_validation_error(),
-            '. Retrying.' if will_retry else '')
-        )
+        gcmd.respond_info('Bad tap detected: %s.%s' %
+                          (tap_analysis.get_validation_error(), '. Retrying.' if will_retry else ''))
 
     # probe until a single good sample is returned or retries are exhausted
     def run_probe(self, gcmd):
@@ -1344,12 +1333,11 @@ class TapSession:
             tap_analysis = self._tapping_move.get_last_analysis()
             tap_error = tap_analysis.get_validation_error()
             if strategy == STRATEGY_FAIL and not is_good:
-                raise self._printer.command_error('Tap failed: %s.' % (
-                    tap_error,))
+                raise self._printer.command_error('Tap failed: %s.' % (tap_error, ))
             if is_good or strategy == STRATEGY_IGNORE:
                 self._results.append(epos)
                 if not is_good:
-                    gcmd.respond_info('Bad tap ignored: %s.' % (tap_error,))
+                    gcmd.respond_info('Bad tap ignored: %s.' % (tap_error, ))
                 return
             location.mark_fouled()
             attempt += 1
@@ -1385,8 +1373,7 @@ class TapSession:
                 good_taps = 0
                 retry += 1
             attempt += 1
-        raise self._printer.command_error(
-            'Too many bad taps. (bad_tap_retries: %i)' % (retries,))
+        raise self._printer.command_error('Too many bad taps. (bad_tap_retries: %i)' % (retries, ))
 
     def pull_probed_results(self):
         res = self._results
@@ -1396,11 +1383,11 @@ class TapSession:
 
 # A nozzle cleaner implementation that uses GCode from the probe's config
 class GcodeNozzleCleaner(NozzleCleanerModule):
+
     def __init__(self, config):
         printer = config.get_printer()
         gcode_macro = printer.load_object(config, 'gcode_macro')
-        self._nozzle_cleaner_gcode = gcode_macro.load_template(config,
-            'nozzle_cleaner_gcode', '')
+        self._nozzle_cleaner_gcode = gcode_macro.load_template(config, 'nozzle_cleaner_gcode', '')
 
     def clean_nozzle(self, attempt, retries, probe_pos):
         context = self._nozzle_cleaner_gcode.create_template_context()
@@ -1414,6 +1401,7 @@ class GcodeNozzleCleaner(NozzleCleanerModule):
 
 
 class LoadCellProbeCommands:
+
     def __init__(self, config, load_cell_probing_move, tap_session):
         self._printer = config.get_printer()
         self._load_cell_probing_move = load_cell_probing_move
@@ -1423,17 +1411,15 @@ class LoadCellProbeCommands:
     def _register_commands(self):
         # Register commands
         gcode = self._printer.lookup_object('gcode')
-        gcode.register_command("LOAD_CELL_TEST_TAP",
-            self.cmd_LOAD_CELL_TEST_TAP, desc=self.cmd_LOAD_CELL_TEST_TAP_help)
-        gcode.register_command("LOAD_CELL_CLEANUP",
-            self.cmd_LOAD_CELL_CLEANUP, desc=self.cmd_LOAD_CELL_CLEANUP_help)
+        gcode.register_command("LOAD_CELL_TEST_TAP", self.cmd_LOAD_CELL_TEST_TAP, desc=self.cmd_LOAD_CELL_TEST_TAP_help)
+        gcode.register_command("LOAD_CELL_CLEANUP", self.cmd_LOAD_CELL_CLEANUP, desc=self.cmd_LOAD_CELL_CLEANUP_help)
 
     cmd_LOAD_CELL_TEST_TAP_help = "Tap the load cell probe to verify operation"
 
     def cmd_LOAD_CELL_TEST_TAP(self, gcmd):
         taps = gcmd.get_int("TAPS", 3, minval=1, maxval=10)
         timeout = gcmd.get_float("TIMEOUT", 30., minval=1., maxval=120.)
-        gcmd.respond_info("Tap the load cell %s times:" % (taps,))
+        gcmd.respond_info("Tap the load cell %s times:" % (taps, ))
         reactor = self._printer.get_reactor()
         for i in range(0, taps):
             result = self._load_cell_probing_move.probing_test(gcmd, timeout)
@@ -1443,7 +1429,7 @@ class LoadCellProbeCommands:
             gcmd.respond_info("Tap Detected!")
             # give the user some time for their finger to move away
             reactor.pause(reactor.monotonic() + 0.2)
-        gcmd.respond_info("Test complete, %s taps detected" % (taps,))
+        gcmd.respond_info("Test complete, %s taps detected" % (taps, ))
 
     cmd_LOAD_CELL_CLEANUP_help = "Clean the load cell probe"
 
@@ -1456,6 +1442,7 @@ class LoadCellProbeCommands:
 
 
 class LoadCellPrinterProbe:
+
     def __init__(self, config):
         cfg_error = config.error
         try:
@@ -1472,34 +1459,26 @@ class LoadCellPrinterProbe:
         sensor = sensor_class(config)
         self._load_cell = load_cell.LoadCell(config, sensor)
         # Read all user configuration and build modules
-        tap_classifier = self._lookup_object(config, 'tap_classifier_module',
-            TapClassifierModule())
+        tap_classifier = self._lookup_object(config, 'tap_classifier_module', TapClassifierModule())
         name = config.get_name()
-        self._tap_analysis_helper = TapAnalysisHelper(self._printer, name,
-            tap_classifier)
-        nozzle_cleaner = self._lookup_object(config, 'nozzle_cleaner_module',
-            GcodeNozzleCleaner(config))
+        self._tap_analysis_helper = TapAnalysisHelper(self._printer, name, tap_classifier)
+        nozzle_cleaner = self._lookup_object(config, 'nozzle_cleaner_module', GcodeNozzleCleaner(config))
         config_helper = LoadCellProbeConfigHelper(config, self._load_cell)
         self._mcu = self._load_cell.get_sensor().get_mcu()
         trigger_dispatch = mcu.TriggerDispatch(self._mcu)
-        continuous_tare_filter_helper = ContinuousTareFilterHelper(config,
-            sensor, trigger_dispatch.get_command_queue())
+        continuous_tare_filter_helper = ContinuousTareFilterHelper(config, sensor, trigger_dispatch.get_command_queue())
         # Probe Interface
         self._param_helper = probe.ProbeParameterHelper(config)
         self._cmd_helper = probe.ProbeCommandHelper(config, self)
         self._probe_offsets = probe.ProbeOffsetsHelper(config)
         self._mcu_load_cell_probe = McuLoadCellProbe(config, self._load_cell,
-            continuous_tare_filter_helper.get_sos_filter(), config_helper,
-            trigger_dispatch)
-        load_cell_probing_move = LoadCellProbingMove(config,
-            self._mcu_load_cell_probe, self._param_helper,
-            continuous_tare_filter_helper, config_helper)
-        self._tapping_move = TappingMove(config, load_cell_probing_move,
-            self._tap_analysis_helper, config_helper)
-        tap_session = TapSession(config, self._tapping_move, self._param_helper,
-            nozzle_cleaner, config_helper)
-        self._probe_session = probe.ProbeSessionHelper(config,
-            self._param_helper, tap_session.start_probe_session)
+                                                     continuous_tare_filter_helper.get_sos_filter(), config_helper,
+                                                     trigger_dispatch)
+        load_cell_probing_move = LoadCellProbingMove(config, self._mcu_load_cell_probe, self._param_helper,
+                                                     continuous_tare_filter_helper, config_helper)
+        self._tapping_move = TappingMove(config, load_cell_probing_move, self._tap_analysis_helper, config_helper)
+        tap_session = TapSession(config, self._tapping_move, self._param_helper, nozzle_cleaner, config_helper)
+        self._probe_session = probe.ProbeSessionHelper(config, self._param_helper, tap_session.start_probe_session)
         # printer integration
         LoadCellProbeCommands(config, load_cell_probing_move, tap_session)
         probe.ProbeVirtualEndstopDeprecation(config)
