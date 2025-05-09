@@ -332,7 +332,7 @@ class GenericPrinterRail:
         self.query_endstops = self.printer.load_object(config, 'query_endstops')
         mcu_endstop = self.lookup_endstop(self.endstop_pin, self.name)
         if hasattr(mcu_endstop, "get_position_endstop"):
-            self.position_endstop = mcu_endstop.get_position_endstop()
+            self.position_endstop = mcu_endstop._get_position_endstop()
         elif default_position_endstop is None:
             self.position_endstop = config.getfloat('position_endstop')
         else:
