@@ -149,6 +149,7 @@ hx71x_read_adc(struct hx71x_adc *hx71x, uint8_t oid)
 {
     // Read from sensor
     uint32_t start = timer_read_time();
+    uint32_t start = timer_read_time();
     uint_fast8_t gain_channel = hx71x->gain_channel;
     uint32_t adc = hx71x_raw_read(hx71x->dout, hx71x->sclk, 24 + gain_channel);
 
@@ -185,6 +186,11 @@ hx71x_read_adc(struct hx71x_adc *hx71x, uint8_t oid)
 
     // Add measurement to buffer
     add_sample(hx71x, oid, counts, false);
+
+    // endstop is optional, report if enabled
+    if (hx71x->last_error == 0 && hx71x->lce) {
+        load_cell_endstop_report_sample(hx71x->lce, counts, start);
+    }
 
     // endstop is optional, report if enabled
     if (hx71x->last_error == 0 && hx71x->lce) {

@@ -365,6 +365,10 @@ class LoadCell:
             import numpy
         except Exception:
             raise config.error("LoadCell requires the numpy module")
+        try:
+            import numpy
+        except Exception:
+            raise config.error("LoadCell requires the numpy module")
         self.printer = printer = config.get_printer()
         self.config_name = config.get_name()
         self.name = config.get_name().split()[-1]

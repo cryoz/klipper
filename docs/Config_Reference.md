@@ -1410,6 +1410,9 @@ real-time using a temperature sensor (typically coupled to a vertical section
 of frame). Multiple sections may be defined as [z_thermal_adjust component] to
 compensate for thermal expansion in different printer components, such as the
 hotend, heatbreak and frame.
+of frame). Multiple sections may be defined as [z_thermal_adjust component] to
+compensate for thermal expansion in different printer components, such as the
+hotend, heatbreak and frame.
 
 See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 
@@ -1431,6 +1434,10 @@ See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 #max_z_adjustment:
 #   Maximum absolute adjustment that can be applied to the Z axis [mm]. The
 #   default is 99999999.0 mm (unlimited).
+#sensor:
+#   Name of a single temperature sensor to use as a temperature source. E.g.
+#   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
+#   is used the other sensor options are not used. 
 #sensor:
 #   Name of a single temperature sensor to use as a temperature source. E.g.
 #   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
@@ -5109,6 +5116,7 @@ data_ready_pin:
 #   The default is False.
 #sample_rate: 660
 #   This chip supports two ranges of sample rates, Normal and Turbo. In turbo
+#   mode the chip's internal clock runs twice as fast and the SPI communication
 #   mode the chip's internal clock runs twice as fast and the SPI communication
 #   speed is also doubled.
 #   Normal sample rates: 20, 45, 90, 175, 330, 600, 1000

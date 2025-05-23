@@ -89,6 +89,7 @@ add_sample(struct ads1220_adc *ads1220, uint8_t oid, uint_fast32_t counts)
 void ads1220_read_adc(struct ads1220_adc *ads1220, uint8_t oid)
 {
     uint32_t start = timer_read_time();
+    uint32_t start = timer_read_time();
     uint8_t msg[3] = {0, 0, 0};
     spidev_transfer(ads1220->spi, 1, sizeof(msg), msg);
     ads1220->pending_flag = 0;
