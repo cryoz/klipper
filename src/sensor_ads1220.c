@@ -108,12 +108,6 @@ void ads1220_read_adc(struct ads1220_adc *ads1220, uint8_t oid)
     }
 
     add_sample(ads1220, oid, counts);
-
-    // endstop is optional, report if enabled and no errors
-    if (ads1220->lce)
-    {
-        load_cell_endstop_report_sample(ads1220->lce, counts, start);
-    }
 }
 
 // Create an ads1220 sensor

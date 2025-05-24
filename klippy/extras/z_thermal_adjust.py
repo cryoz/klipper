@@ -32,6 +32,7 @@ class ZThermalAdjuster:
         self.printer.register_event_handler('klippy:ready', self.handle_ready)
         self.printer.register_event_handler("homing:home_rails_end", self.handle_homing_move_end)
 
+        # Setup temperature sensor
         self.smooth_time = config.getfloat('smooth_time', 2., above=0.)
         self.inv_smooth_time = 1. / self.smooth_time
 

@@ -322,18 +322,6 @@ class ToolHead:
         ]
         for module_name in modules:
             self.printer.load_object(config, module_name)
-        self.z_pos_filepath = "/usr/data/creality/userdata/config/z_pos.json"
-        self.z_pos = self.get_z_pos()
-
-    def get_z_pos(self):
-        z_pos = 0
-        if os.path.exists(self.z_pos_filepath):
-            try:
-                with open(self.z_pos_filepath, "r") as f:
-                    z_pos = float(json.loads(f.read()).get("z_pos", 0))
-            except Exception as err:
-                logging.error(err)
-        return z_pos
 
     # Print time and flush tracking
     def _advance_flush_time(self, flush_time):
@@ -791,18 +779,6 @@ class ToolHead:
             accel = min(p, t)
         self.max_accel = accel
         self._calc_junction_deviation()
-        v_sd = self.printer.lookup_object('virtual_sdcard', None)
-        print_stats = self.printer.lookup_object('print_stats', None)
-        if print_stats and print_stats.state == "printing" and v_sd and v_sd.count_M204 < 3 and os.path.exists(
-                v_sd.print_file_name_path):
-            v_sd.count_M204 += 1
-            with open(v_sd.print_file_name_path, "r") as f:
-                result = (json.loads(f.read()))
-                result["M204"] = cmd
-            with open(v_sd.print_file_name_path, "w") as f:
-                f.write(json.dumps(result))
-                f.flush()
-            logging.info("Record cmd_M204")
 
 
 def add_printer_objects(config):
