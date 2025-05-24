@@ -11,7 +11,7 @@ host-tool-src = tool/host_crc16.c
 OUT=out/
 
 # Kconfig includes
-export KCONFIG_CONFIG     := $(CURDIR)/.config
+export KCONFIG_CONFIG     ?= $(CURDIR)/.config
 -include $(KCONFIG_CONFIG)
 
 # Common command definitions
@@ -21,7 +21,7 @@ LD=$(CROSS_PREFIX)ld
 OBJCOPY=$(CROSS_PREFIX)objcopy
 OBJDUMP=$(CROSS_PREFIX)objdump
 STRIP=$(CROSS_PREFIX)strip
-CPP=cpp
+CPP=$(CROSS_PREFIX)cpp
 PYTHON=python3
 
 # Source files
@@ -157,10 +157,6 @@ menuconfig:
 	$(Q)$(PYTHON) lib/kconfiglib/menuconfig.py src/Kconfig
 	@echo "  Board HW Ver: $(board_hw_version)"
 	@echo "  Board FW Ver: $(board_fw_version)"
-
-%_defconfig: src/configs/%_defconfig
-	@echo "  Load configuration: $@"
-	$(Q)cp -v src/configs/$@ $(KCONFIG_CONFIG)
 
 ################ Generic rules
 
