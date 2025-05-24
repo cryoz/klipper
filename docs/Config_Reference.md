@@ -1410,9 +1410,6 @@ real-time using a temperature sensor (typically coupled to a vertical section
 of frame). Multiple sections may be defined as [z_thermal_adjust component] to
 compensate for thermal expansion in different printer components, such as the
 hotend, heatbreak and frame.
-of frame). Multiple sections may be defined as [z_thermal_adjust component] to
-compensate for thermal expansion in different printer components, such as the
-hotend, heatbreak and frame.
 
 See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 
@@ -1434,14 +1431,6 @@ See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 #max_z_adjustment:
 #   Maximum absolute adjustment that can be applied to the Z axis [mm]. The
 #   default is 99999999.0 mm (unlimited).
-#sensor:
-#   Name of a single temperature sensor to use as a temperature source. E.g.
-#   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
-#   is used the other sensor options are not used. 
-#sensor:
-#   Name of a single temperature sensor to use as a temperature source. E.g.
-#   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
-#   is used the other sensor options are not used. 
 #sensor_type:
 #sensor_pin:
 #min_temp:
@@ -5117,7 +5106,6 @@ data_ready_pin:
 #sample_rate: 660
 #   This chip supports two ranges of sample rates, Normal and Turbo. In turbo
 #   mode the chip's internal clock runs twice as fast and the SPI communication
-#   mode the chip's internal clock runs twice as fast and the SPI communication
 #   speed is also doubled.
 #   Normal sample rates: 20, 45, 90, 175, 330, 600, 1000
 #   Turbo sample rates: 40, 90, 180, 350, 660, 1200, 2000
@@ -5212,67 +5200,6 @@ sensor_type:
 #   The name of a config section that sets up a custom Tap Classifier module. A
 #   Tap Classifier module can perform detaild analysis of the tap data and
 #   decide if it is a bad tap or a good tap. Default: None
-#z_offset:
-#speed:
-#samples:
-#sample_retract_dist:
-#lift_speed:
-#samples_result:
-#samples_tolerance:
-#samples_tolerance_retries:
-#activate_gcode:
-#deactivate_gcode:
-#   See the "[probe]" section for a description of the above parameters.
-```
-
-### [load_cell_probe]
-Load Cell Probe. This combines the functionality of a [probe] and a [load_cell].
-
-```
-[load_cell_probe]
-sensor_type:
-#   This must be one of the supported bulk ADC sensor types and support
-#   load cell endstops on the mcu.
-#counts_per_gram:
-#reference_tare_counts:
-#   These parameters must be configured before the probe will operate.
-#   See the [load_cell] section for further details.
-#safety_limit: 1000
-#   The safe limit for probing force relative to the reference_tare_counts on
-#   the load_cell. The default is +/-1Kg.
-#trigger_force: 50.0
-#   The force that the probe will trigger at. 50g is the default.
-#continuous_tare_highpass: 0.8
-#   Enable optional continuous taring while homing & probing to reject drift.
-#   The value is a frequency, in Hz, below which drift will be ignored.This
-#   option requires the SciPy library. Default: None
-#continuous_tare_lowpass: 100.0
-#   The value is a frequency, in Hz, above which high frequency noise in the
-#   load cell will be igfiltered outnored. If this option is set,
-#   continuous_tare_highpass must also be set. Default: None
-#continuous_tare_notch: 50, 60
-#   1 or 2 frequencies, in Hz, to filter out of the load cell data. This is
-#   intended to reject power line noise. If this option is set,
-#   continuous_tare_highpass must also be set. Default: None
-#continuous_tare_notch_quality: 2.0
-#   Controls how narrow the range of frequencies are that the notch filter
-#   removes. Larger numbers produce a narrower filter. Minimum value is 0.5 and
-#   maximum is 3.0. Default: 2.0
-#continuous_tare_trigger_force_grams: 40.0
-#   The force that the probe will trigger at whe using the continuous tearing
-#   filter. 40g is the default.
-#trigger_count: 1
-#   The number of samples over the trigger_force_grams threshold that will cause
-#   the probe to trigger. 1 is the default.
-#settling_time: 0.375
-#   Additional time to wait before taring the probe in seconds. This allows any
-#   vibrations to settle and bowden tubes time to flex etc. This improves
-#   repeatability. If the continuous_tare_filter is used this may be set to 0.
-#tare_samples: 
-#   The number of samples to use when automatically taring the load_cell before
-#   each probe. The default value is: sample_per_second * (1 / 60) * 4. This
-#   collects samples from 4 cycles of 60Hz mains power to cancel power line
-#   noise.
 #z_offset:
 #speed:
 #samples:

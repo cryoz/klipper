@@ -361,14 +361,6 @@ class LoadCellSampleCollector:
 MIN_COUNTS_PER_GRAM = 1.
 class LoadCell:
     def __init__(self, config, sensor):
-        try:
-            import numpy
-        except Exception:
-            raise config.error("LoadCell requires the numpy module")
-        try:
-            import numpy
-        except Exception:
-            raise config.error("LoadCell requires the numpy module")
         self.printer = printer = config.get_printer()
         self.config_name = config.get_name()
         self.name = config.get_name().split()[-1]

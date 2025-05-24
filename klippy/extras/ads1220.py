@@ -19,14 +19,12 @@ WREG_CMD = 0x40
 NOOP_CMD = 0x0
 RESET_STATE = bytearray([0x0, 0x0, 0x0, 0x0])
 
-
 # turn bytearrays into pretty hex strings: [0xff, 0x1]
 def hexify(byte_array):
     return "[%s]" % (", ".join([hex(b) for b in byte_array]))
 
 
 class ADS1220:
-
     def __init__(self, config):
         self.printer = printer = config.get_printer()
         self.name = config.get_name().split()[-1]
@@ -34,41 +32,41 @@ class ADS1220:
         self.consecutive_fails = 0
         # Chip options
         # Gain
-        self.gain_options = {'1': 0x0, '2': 0x1, '4': 0x2, '8': 0x3, '16': 0x4, '32': 0x5, '64': 0x6, '128': 0x7}
+        self.gain_options = {'1': 0x0, '2': 0x1, '4': 0x2, '8': 0x3, '16': 0x4,
+                             '32': 0x5, '64': 0x6, '128': 0x7}
         self.gain = config.getchoice('gain', self.gain_options, default='128')
         # Sample rate
-        self.sps_normal = {'20': 20, '45': 45, '90': 90, '175': 175, '330': 330, '600': 600, '1000': 1000}
-        self.sps_turbo = {'40': 40, '90': 90, '180': 180, '350': 350, '660': 660, '1200': 1200, '2000': 2000}
+        self.sps_normal = {'20': 20, '45': 45, '90': 90, '175': 175,
+                           '330': 330, '600': 600, '1000': 1000}
+        self.sps_turbo = {'40': 40, '90': 90, '180': 180, '350': 350,
+                          '660': 660, '1200': 1200, '2000': 2000}
         self.sps_options = self.sps_normal.copy()
         self.sps_options.update(self.sps_turbo)
-        self.sps = config.getchoice('sample_rate', self.sps_options, default='660')
+        self.sps = config.getchoice('sample_rate', self.sps_options,
+                                    default='660')
         self.is_turbo = str(self.sps) in self.sps_turbo
         # Input multiplexer: AINP and AINN
-        mux_options = {
-            'AIN0_AIN1': 0b0000,
-            'AIN0_AIN2': 0b0001,
-            'AIN0_AIN3': 0b0010,
-            'AIN1_AIN2': 0b0011,
-            'AIN1_AIN3': 0b0100,
-            'AIN2_AIN3': 0b0101,
-            'AIN1_AIN0': 0b0110,
-            'AIN3_AIN2': 0b0111,
-            'AIN0_AVSS': 0b1000,
-            'AIN1_AVSS': 0b1001,
-            'AIN2_AVSS': 0b1010,
-            'AIN3_AVSS': 0b1011
-        }
-        self.mux = config.getchoice('input_mux', mux_options, default='AIN0_AIN1')
+        mux_options = {'AIN0_AIN1': 0b0000, 'AIN0_AIN2': 0b0001,
+                       'AIN0_AIN3': 0b0010, 'AIN1_AIN2': 0b0011,
+                       'AIN1_AIN3': 0b0100, 'AIN2_AIN3': 0b0101,
+                       'AIN1_AIN0': 0b0110, 'AIN3_AIN2': 0b0111,
+                       'AIN0_AVSS': 0b1000, 'AIN1_AVSS': 0b1001,
+                       'AIN2_AVSS': 0b1010, 'AIN3_AVSS': 0b1011}
+        self.mux = config.getchoice('input_mux', mux_options,
+                                    default='AIN0_AIN1')
         # PGA Bypass
         self.pga_bypass = config.getboolean('pga_bypass', default=False)
         # bypass PGA when AVSS is the negative input
         force_pga_bypass = self.mux >= 0b1000
         self.pga_bypass = force_pga_bypass or self.pga_bypass
         # Voltage Reference
-        self.vref_options = {'internal': 0b0, 'REF0': 0b01, 'REF1': 0b10, 'analog_supply': 0b11}
-        self.vref = config.getchoice('vref', self.vref_options, default='internal')
+        self.vref_options = {'internal': 0b0, 'REF0': 0b01, 'REF1': 0b10,
+                             'analog_supply': 0b11}
+        self.vref = config.getchoice('vref', self.vref_options,
+                                     default='internal')
         # check for conflict between REF1 and AIN0/AIN3
-        mux_conflict = [0b0000, 0b0001, 0b0010, 0b0100, 0b0101, 0b0110, 0b0111, 0b1000, 0b1011]
+        mux_conflict = [0b0000, 0b0001, 0b0010, 0b0100, 0b0101, 0b0110, 0b0111,
+                        0b1000, 0b1011]
         if self.vref == 0b10 and self.mux in mux_conflict:
             raise config.error("ADS1220 config error: AIN0/REFP1 and AIN3/REFN1"
                                " cant be used as a voltage reference and"
@@ -94,21 +92,27 @@ class ADS1220:
         # Measurement conversion
         self.ffreader = bulk_sensor.FixedFreqReader(mcu, chip_smooth, "<i")
         # Process messages in batches
-        self.batch_bulk = bulk_sensor.BatchBulkHelper(self.printer, self._process_batch, self._start_measurements,
-                                                      self._finish_measurements, UPDATE_INTERVAL)
+        self.batch_bulk = bulk_sensor.BatchBulkHelper(
+            self.printer, self._process_batch, self._start_measurements,
+            self._finish_measurements, UPDATE_INTERVAL)
         # Command Configuration
         self.attach_probe_cmd = None
-        mcu.add_config_cmd("config_ads1220 oid=%d spi_oid=%d data_ready_pin=%s" %
-                           (self.oid, self.spi.get_oid(), self.data_ready_pin))
-        mcu.add_config_cmd("query_ads1220 oid=%d rest_ticks=0" % (self.oid, ), on_restart=True)
+        mcu.add_config_cmd(
+            "config_ads1220 oid=%d spi_oid=%d data_ready_pin=%s"
+            % (self.oid, self.spi.get_oid(), self.data_ready_pin))
+        mcu.add_config_cmd("query_ads1220 oid=%d rest_ticks=0"
+                           % (self.oid,), on_restart=True)
         mcu.register_config_callback(self._build_config)
         self.query_ads1220_cmd = None
 
     def _build_config(self):
         cmdqueue = self.spi.get_command_queue()
-        self.query_ads1220_cmd = self.mcu.lookup_command("query_ads1220 oid=%c rest_ticks=%u", cq=cmdqueue)
-        self.attach_probe_cmd = self.mcu.lookup_command("ads1220_attach_load_cell_probe oid=%c load_cell_probe_oid=%c")
-        self.ffreader.setup_query_command("query_ads1220_status oid=%c", oid=self.oid, cq=cmdqueue)
+        self.query_ads1220_cmd = self.mcu.lookup_command(
+            "query_ads1220 oid=%c rest_ticks=%u", cq=cmdqueue)
+        self.attach_probe_cmd = self.mcu.lookup_command(
+            "ads1220_attach_load_cell_probe oid=%c load_cell_probe_oid=%c")
+        self.ffreader.setup_query_command("query_ads1220_status oid=%c",
+                                          oid=self.oid, cq=cmdqueue)
 
     def get_mcu(self):
         return self.mcu
@@ -162,7 +166,8 @@ class ADS1220:
     def _process_batch(self, eventtime):
         samples = self.ffreader.pull_samples()
         self._convert_samples(samples)
-        return {'data': samples, 'errors': self.last_error_count, 'overflows': self.ffreader.get_last_overflows()}
+        return {'data': samples, 'errors': self.last_error_count,
+                'overflows': self.ffreader.get_last_overflows()}
 
     def reset_chip(self):
         # the reset command takes 50us to complete
@@ -170,10 +175,11 @@ class ADS1220:
         # read startup register state and validate
         val = self.read_reg(0x0, 4)
         if val != RESET_STATE:
-            raise self.printer.command_error("Invalid ads1220 reset state (got %s vs %s).\n"
-                                             "This is generally indicative of connection problems\n"
-                                             "(e.g. faulty wiring) or a faulty ADS1220 chip." %
-                                             (hexify(val), hexify(RESET_STATE)))
+            raise self.printer.command_error(
+                "Invalid ads1220 reset state (got %s vs %s).\n"
+                "This is generally indicative of connection problems\n"
+                "(e.g. faulty wiring) or a faulty ADS1220 chip."
+                % (hexify(val), hexify(RESET_STATE)))
 
     def setup_chip(self):
         continuous = 0x1  # enable continuous conversions
@@ -181,7 +187,9 @@ class ADS1220:
         sps_list = self.sps_turbo if self.is_turbo else self.sps_normal
         data_rate = list(sps_list.keys()).index(str(self.sps))
         reg_values = [(self.mux << 4) | (self.gain << 1) | int(self.pga_bypass),
-                      (data_rate << 5) | (mode << 3) | (continuous << 2), (self.vref << 6), 0x0]
+                      (data_rate << 5) | (mode << 3) | (continuous << 2),
+                      (self.vref << 6),
+                      0x0]
         self.write_reg(0x0, reg_values)
         # start measurements immediately
         self.send_command(START_SYNC_CMD)
@@ -201,9 +209,10 @@ class ADS1220:
         self.spi.spi_send(write_command)
         stored_val = self.read_reg(reg, len(register_bytes))
         if bytearray(register_bytes) != stored_val:
-            raise self.printer.command_error("Failed to set ADS1220 register [0x%x] to %s: got %s. "
-                                             "This may be a connection problem (e.g. faulty wiring)" %
-                                             (reg, hexify(register_bytes), hexify(stored_val)))
+            raise self.printer.command_error(
+                "Failed to set ADS1220 register [0x%x] to %s: got %s. "
+                "This may be a connection problem (e.g. faulty wiring)" % (
+                    reg, hexify(register_bytes), hexify(stored_val)))
 
 
 ADS1220_SENSOR_TYPE = {"ads1220": ADS1220}
