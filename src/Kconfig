@@ -2,6 +2,8 @@
 
 mainmenu "Klipper Firmware Configuration"
 
+source "src/configs/Kconfig"
+
 config LOW_LEVEL_OPTIONS
     bool "Enable extra low-level configuration options"
     help
