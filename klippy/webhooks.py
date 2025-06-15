@@ -29,7 +29,7 @@ except ImportError:
                         for k, v in data.items()}
             return data
     def json_dumps(obj):
-        return json.dumps(obj, separators=(',', ':')).encode()
+        return json.dumps(obj, separators=(',', ':'), default=str).encode()
     def json_loads(data):
         return json.loads(data, object_hook=json_loads_byteify)
 else:
@@ -281,8 +281,8 @@ class ClientConnection:
 
     def send(self, data):
         try:
-            jmsg = json.dumps(data, separators=(',', ':'), default=str)
-            self.send_buffer += jmsg.encode() + b"\x03"
+            jmsg = json.dumps(data)
+            self.send_buffer += jmsg + b"\x03"
         except (TypeError, ValueError) as e:
             msg = ("json encoding error: %s" % (str(e),))
             logging.exception(msg)
