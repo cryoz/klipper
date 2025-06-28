@@ -10,36 +10,47 @@
 import threading
 
 KELVIN_TO_CELSIUS = -273.15
+REPORT_TIME = 0.300
+
 
 class ZThermalAdjuster:
+
     def __init__(self, config):
         self.printer = config.get_printer()
+        self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
         self.lock = threading.Lock()
         self.config = config
 
         # Get config parameters, convert to SI units where necessary
-        self.temp_coeff = config.getfloat('temp_coeff', minval=-1, maxval=1,
-            default=0)
+        self.temp_coeff = config.getfloat('temp_coeff', minval=-1, maxval=1, default=0)
         self.off_above_z = config.getfloat('z_adjust_off_above', 99999999.)
         self.max_z_adjust_mm = config.getfloat('max_z_adjustment', 99999999.)
 
         # Register printer events
-        self.printer.register_event_handler("klippy:connect",
-                                            self.handle_connect)
-        self.printer.register_event_handler("homing:home_rails_end",
-                                            self.handle_homing_move_end)
+        self.printer.register_event_handler("klippy:connect", self.handle_connect)
+        self.printer.register_event_handler('klippy:ready', self.handle_ready)
+        self.printer.register_event_handler("homing:home_rails_end", self.handle_homing_move_end)
 
         # Setup temperature sensor
         self.smooth_time = config.getfloat('smooth_time', 2., above=0.)
         self.inv_smooth_time = 1. / self.smooth_time
-        self.min_temp = config.getfloat('min_temp', minval=KELVIN_TO_CELSIUS)
-        self.max_temp = config.getfloat('max_temp', above=self.min_temp)
-        pheaters = self.printer.load_object(config, 'heaters')
-        self.sensor = pheaters.setup_sensor(config)
-        self.sensor.setup_minmax(self.min_temp, self.max_temp)
-        self.sensor.setup_callback(self.temperature_callback)
-        pheaters.register_sensor(config, self)
+
+        # Re-use temperature sensor
+        self.sensor_section = config.get('sensor', default=None)
+        self.temperature_update_timer = None
+        if self.sensor_section is None:
+            # Setup temperature sensor
+            self.min_temp = config.getfloat('min_temp', minval=KELVIN_TO_CELSIUS)
+            self.max_temp = config.getfloat('max_temp', above=self.min_temp)
+            pheaters = self.printer.load_object(config, 'heaters')
+            self.sensor = pheaters.setup_sensor(config)
+            self.sensor.setup_minmax(self.min_temp, self.max_temp)
+            self.sensor.setup_callback(self.temperature_callback)
+            pheaters.register_sensor(config, self)
+        else:
+            self.sensor = None
+            self.temperature_update_timer = self.reactor.register_timer(self._update_temp)
 
         self.last_temp = 0.
         self.measured_min = self.measured_max = 0.
@@ -63,12 +74,21 @@ class ZThermalAdjuster:
         self.register_commands(self.component)
 
     def register_commands(self, component):
-        self.gcode.register_mux_command("SET_Z_THERMAL_ADJUST", "COMPONENT",
-                                    component, self.cmd_SET_Z_THERMAL_ADJUST,
-                                    desc=self.cmd_SET_Z_THERMAL_ADJUST_help)
+        self.gcode.register_mux_command("SET_Z_THERMAL_ADJUST",
+                                        "COMPONENT",
+                                        component,
+                                        self.cmd_SET_Z_THERMAL_ADJUST,
+                                        desc=self.cmd_SET_Z_THERMAL_ADJUST_help)
 
     def handle_connect(self):
         'Called after all printer objects are instantiated'
+        if self.sensor_section is not None:
+            sensor_obj = self.printer.lookup_object(self.sensor_section)
+            if (hasattr(sensor_obj, 'get_status') and 'temperature' in sensor_obj.get_status(self.reactor.monotonic())):
+                self.sensor = sensor_obj
+            else:
+                raise self.printer.config_error("'%s' does not report a temperature." % (self.sensor_section, ))
+
         self.toolhead = self.printer.lookup_object('toolhead')
         gcode_move = self.printer.lookup_object('gcode_move')
 
@@ -80,6 +100,11 @@ class ZThermalAdjuster:
         steppers = [s.get_name() for s in kin.get_steppers()]
         z_stepper = kin.get_steppers()[steppers.index("stepper_z")]
         self.z_step_dist = z_stepper.get_step_dist()
+
+    def handle_ready(self):
+        if self.temperature_update_timer is not None:
+            # Start temperature update timer
+            self.reactor.update_timer(self.temperature_update_timer, self.reactor.NOW)
 
     def get_status(self, eventtime):
         return {
@@ -107,22 +132,21 @@ class ZThermalAdjuster:
             adjust = -1 * self.temp_coeff * delta_t
 
             # compute sign (+1 or -1) for maximum offset setting
-            sign = 1 - (adjust <= 0)*2
+            sign = 1 - (adjust <= 0) * 2
 
             # Don't apply adjustments smaller than step distance
             if abs(adjust - self.z_adjust_mm) > self.z_step_dist:
-                self.z_adjust_mm = min([self.max_z_adjust_mm*sign,
-                    adjust], key=abs)
+                self.z_adjust_mm = min([self.max_z_adjust_mm * sign, adjust], key=abs)
 
         # Apply Z adjustment
         new_z = pos[2] + self.z_adjust_mm
         self.last_z_adjust_mm = self.z_adjust_mm
-        return [pos[0], pos[1], new_z, pos[3]]
+        return [pos[0], pos[1], new_z] + pos[3:]
 
     def calc_unadjust(self, pos):
         'Remove Z adjustment'
         unadjusted_z = pos[2] - self.z_adjust_mm
-        return [pos[0], pos[1], unadjusted_z, pos[3]]
+        return [pos[0], pos[1], unadjusted_z] + pos[3:]
 
     def get_position(self):
         position = self.calc_unadjust(self.next_transform.get_position())
@@ -152,6 +176,14 @@ class ZThermalAdjuster:
             self.measured_min = min(self.measured_min, self.smoothed_temp)
             self.measured_max = max(self.measured_max, self.smoothed_temp)
 
+    def _update_temp(self, eventtime):
+        sensor_status = self.sensor.get_status(eventtime)
+        sensor_temperature = sensor_status['temperature']
+        self.temperature_callback(eventtime, sensor_temperature)
+        measured_time = self.reactor.monotonic()
+        # set next update time
+        return measured_time + REPORT_TIME
+
     def get_temp(self, eventtime):
         return self.smoothed_temp, 0.
 
@@ -178,27 +210,24 @@ class ZThermalAdjuster:
         override = ' (manual)' if self.ref_temp_override else ''
         component = ''
         if not self.component is None:
-            component = "component: %s\n" % (self.component,)
-        msg = ("%s"
-               "enable: %s\n"
-               "temp_coeff: %f mm/degC\n"
-               "ref_temp: %.2f degC%s\n"
-               "-------------------\n"
-               "Current Z temp: %.2f degC\n"
-               "Applied Z adjustment: %.4f mm"
-               % (component,
-                  state,
-                  self.temp_coeff,
-                  self.ref_temperature, override,
-                  self.smoothed_temp,
-                  self.z_adjust_mm)
-        )
+            component = "component: %s\n" % (self.component, )
+        msg = (
+            "%s"
+            "enable: %s\n"
+            "temp_coeff: %f mm/degC\n"
+            "ref_temp: %.2f degC%s\n"
+            "-------------------\n"
+            "Current Z temp: %.2f degC\n"
+            "Applied Z adjustment: %.4f mm" %
+            (component, state, self.temp_coeff, self.ref_temperature, override, self.smoothed_temp, self.z_adjust_mm))
         gcmd.respond_info(msg)
 
     cmd_SET_Z_THERMAL_ADJUST_help = 'Set/query Z Thermal Adjust parameters.'
 
+
 def load_config_prefix(config):
     return ZThermalAdjuster(config)
+
 
 def load_config(config):
     return ZThermalAdjuster(config)

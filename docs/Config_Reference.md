@@ -1431,6 +1431,10 @@ See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 #max_z_adjustment:
 #   Maximum absolute adjustment that can be applied to the Z axis [mm]. The
 #   default is 99999999.0 mm (unlimited).
+#sensor:
+#   Name of a single temperature sensor to use as a temperature source. E.g.
+#   'temperature_sensor frame', 'extruder', 'heater_bed' etc. If this option
+#   is used the other sensor options are not used. 
 #sensor_type:
 #sensor_pin:
 #min_temp:
@@ -2542,6 +2546,13 @@ printer kinematics.
 #   Endstop switch detection pin. If specified, then one may perform
 #   "homing moves" by adding a STOP_ON_ENDSTOP parameter to
 #   MANUAL_STEPPER movement commands.
+#position_min:
+#position_max:
+#   The minimum and maximum position the stepper can be commanded to
+#   move to. If specified then one may not command the stepper to move
+#   past the given position. Note that these limits do not prevent
+#   setting an arbitrary position with the `MANUAL_STEPPER
+#   SET_POSITION=x` command. The default is to not enforce a limit.
 ```
 
 ## Custom heaters and sensors
@@ -5010,6 +5021,7 @@ adc2:
 ## Load Cells
 
 ### [load_cell]
+
 Load Cell. Uses an ADC sensor attached to a load cell to create a digital
 scale.
 
@@ -5030,8 +5042,10 @@ sensor_type:
 ```
 
 #### HX711
+
 This is a 24 bit low sample rate chip using "bit-bang" communications. It is
 suitable for filament scales.
+
 ```
 [load_cell]
 sensor_type: hx711
@@ -5052,6 +5066,7 @@ dout_pin:
 ```
 
 #### HX717
+
 This is the 4x higher sample rate version of the HX711, suitable for probing.
 ```
 [load_cell]
@@ -5073,8 +5088,10 @@ dout_pin:
 ```
 
 #### ADS1220
+
 The ADS1220 is a 24 bit ADC supporting up to a 2Khz sample rate configurable in
 software.
+
 ```
 [load_cell]
 sensor_type: ads1220
@@ -5124,6 +5141,7 @@ data_ready_pin:
 ```
 
 ### [load_cell_probe]
+
 Load Cell Probe. This combines the functionality of a [probe] and a [load_cell].
 
 ```
@@ -5154,7 +5172,7 @@ sensor_type:
 #   load cell will be igfiltered outnored. This option requires the SciPy
 #   library. Default: None
 #buzz_filter_delay: 2
-#   The delay, or 'order', of the buzz filter. This controles the number of
+#   The delay, or 'order', of the buzz filter. This controls the number of
 #   samples required to make a trigger detection. Can be 1 or 2, the default
 #   is 2.
 #notch_filter_frequencies: 50, 60
@@ -5187,11 +5205,14 @@ sensor_type:
 #            A new positon in a circular patter will be used for the next
 #            attempt.
 #   The default is RETRY
+#retry_speed: 50
+#   The horizontal speed of the toolhead when it needs to reposition to a clean
+#   location for the CIRCLE bad tap strategy. The default is 50mm/s
 #bad_tap_retries: 6
 #   Number of attempts that the probe should make before failing. The max is
 #   18. The default is 6
 #nozzle_cleaner_gcode:
-#   Amn optional GCode macro to clean the nozzle when a bad tap is detected.
+#   An optional GCode macro to clean the nozzle when a bad tap is detected.
 #   Default: None
 #nozzle_cleaner_module:
 #   The name of a config section that sets up a custom nozzle cleaner module.
@@ -5200,6 +5221,103 @@ sensor_type:
 #   The name of a config section that sets up a custom Tap Classifier module. A
 #   Tap Classifier module can perform detaild analysis of the tap data and
 #   decide if it is a bad tap or a good tap. Default: None
+#z_offset:
+#speed:
+#samples:
+#sample_retract_dist:
+#lift_speed:
+#samples_result:
+#samples_tolerance:
+#samples_tolerance_retries:
+#activate_gcode:
+#deactivate_gcode:
+#   See the "[probe]" section for a description of the above parameters.
+```
+
+### [simple_tap_classifier]
+
+Create a SimpleTapClassifier that can be used to classify taps by a [load_cell_probe](#load_cell_probe). See `tap_classifier_module`. This module comes with some default settings that may work well for your printer. Everything that it checks can be configured with these settings. A tap has to pass all of these checks to be considered valid. If one of these checks fail, the probes retry strategy will be invoked. A check can be defeated by assigning the logical minimum or maximum value to the setting.
+
+Review the labeled [tap diagram](Load_Cell.md#tap-analysis-explained) in the load cell documentation for more details about the names used here and which specific parts of the tap they refer to.
+
+```text
+[simple_tap_classifier]
+#min_decompression_force_percentage: 66.6
+#   Checks that the decompression force is at least 2/3's of the measured
+#   compression force. A low decompression force usually indicates plastic oozed
+#   out during the dwell time before the pullback move.
+#max_baseline_force_change_percentage: 50
+#   Checks that the force before and after the tap do not differ by more than
+#   50% of the measured compression force. A large difference may indicate the
+#   presence of molten plastic under the nozzle or an unstable bed surface.
+#compression_start_angle_range: 70, 110
+#compression_end_angle_range: 70, 110
+#decompression_start_angle_range: 95, 135
+#decompression_end_angle_range: 95, 135
+#   Checks that the angle measured at each point on the tap graph falls inside
+#   the configured range. The range must be 2 values in min, max order and
+#   between 0 and 180 degrees.
+#   The default for all of these is None.
+```
+
+### [tap_recorder]
+
+Create a TapRecorder that listens for tap events from a `[load_cell_probe]`. This enables the tap recorder related GCode commands. Tap data is recorded as JSON to a file. This is useful for conducting research on load cell probes, e.g. as a tool for gathering bulk data for machine learning.
+
+```
+#[tap_recorder]
+#load_cell_probe: load_cell_probe
+#   Specify the name of the load cell probe to listen to.
+```
+
+### [load_cell_probe]
+Load Cell Probe. This combines the functionality of a [probe] and a [load_cell].
+
+```
+[load_cell_probe]
+sensor_type:
+#   This must be one of the supported bulk ADC sensor types and support
+#   load cell endstops on the mcu.
+#counts_per_gram:
+#reference_tare_counts:
+#   These parameters must be configured before the probe will operate.
+#   See the [load_cell] section for further details.
+#safety_limit: 1000
+#   The safe limit for probing force relative to the reference_tare_counts on
+#   the load_cell. The default is +/-1Kg.
+#trigger_force: 50.0
+#   The force that the probe will trigger at. 50g is the default.
+#continuous_tare_highpass: 0.8
+#   Enable optional continuous taring while homing & probing to reject drift.
+#   The value is a frequency, in Hz, below which drift will be ignored.This
+#   option requires the SciPy library. Default: None
+#continuous_tare_lowpass: 100.0
+#   The value is a frequency, in Hz, above which high frequency noise in the
+#   load cell will be igfiltered outnored. If this option is set,
+#   continuous_tare_highpass must also be set. Default: None
+#continuous_tare_notch: 50, 60
+#   1 or 2 frequencies, in Hz, to filter out of the load cell data. This is
+#   intended to reject power line noise. If this option is set,
+#   continuous_tare_highpass must also be set. Default: None
+#continuous_tare_notch_quality: 2.0
+#   Controls how narrow the range of frequencies are that the notch filter
+#   removes. Larger numbers produce a narrower filter. Minimum value is 0.5 and
+#   maximum is 3.0. Default: 2.0
+#continuous_tare_trigger_force_grams: 40.0
+#   The force that the probe will trigger at whe using the continuous tearing
+#   filter. 40g is the default.
+#trigger_count: 1
+#   The number of samples over the trigger_force_grams threshold that will cause
+#   the probe to trigger. 1 is the default.
+#settling_time: 0.375
+#   Additional time to wait before taring the probe in seconds. This allows any
+#   vibrations to settle and bowden tubes time to flex etc. This improves
+#   repeatability. If the continuous_tare_filter is used this may be set to 0.
+#tare_samples: 
+#   The number of samples to use when automatically taring the load_cell before
+#   each probe. The default value is: sample_per_second * (1 / 60) * 4. This
+#   collects samples from 4 cycles of 60Hz mains power to cancel power line
+#   noise.
 #z_offset:
 #speed:
 #samples:
