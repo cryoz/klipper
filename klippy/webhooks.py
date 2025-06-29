@@ -281,7 +281,7 @@ class ClientConnection:
 
     def send(self, data):
         try:
-            jmsg = json.dumps(data)
+            jmsg = json_dumps(data)
             self.send_buffer += jmsg + b"\x03"
         except (TypeError, ValueError) as e:
             msg = ("json encoding error: %s" % (str(e),))
