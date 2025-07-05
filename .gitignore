@@ -1,4 +1,5 @@
 out
+outfw
 *.so
 *.pyc
 .config
