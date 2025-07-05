@@ -18,16 +18,12 @@ Q16_FRAC_BITS = (32 - (1 + Q16_INT_BITS))
 
 ######## Types
 
-
-
 class TapClassifierModule(object):
     def classify(self, tap_analysis):
         pass
 
 
-
 class NozzleCleanerModule(object):
-
     def clean_nozzle(self, attempt, retries, probe_pos):
         pass
 
@@ -59,7 +55,6 @@ class TrapezoidalMove(object):
 
 # point on a time/force graph
 class ForcePoint(object):
-
     def __init__(self, time_t, force):
         self.time = float(time_t)
         self.force = float(force)
@@ -105,14 +100,12 @@ class ForceLine(object):
         return {'slope': self.slope, 'intercept': self.intercept}
 
 
-
 #########################
 # Math Support Functions
 
 # helper class for working with a time/force graph
 # work with subsections to find elbows and best fit lines
 class ForceGraph:
-
     def __init__(self, time_nd_64, force_nd_64):
         self.time = time_nd_64
         self.force = force_nd_64
@@ -215,7 +208,8 @@ class ForceGraph:
     #           |*----*\
     #           |       \
     #    *-----*|        \*-----*
-    def tap_decompose(self, homing_end_time, pullback_start_time, pullback_cruise_time, pullback_cruise_duration):
+    def tap_decompose(self, homing_end_time, pullback_start_time,
+            pullback_cruise_time, pullback_cruise_duration):
         homing_end_idx = self.index_near(homing_end_time)
         # use the pullback duration to trim the amount of approach data used
         homing_start_time = homing_end_time - pullback_cruise_duration
@@ -249,7 +243,8 @@ class ForceGraph:
         # l5 is the line after decompression ends
         l5 = self.line(break_contact_idx, pullback_end_idx)
         # split the points between the elbow and the start of movement by force
-        midpoint_idx = self._split_by_force(pullback_cruise_idx, break_contact_idx)
+        midpoint_idx = self._split_by_force(pullback_cruise_idx,
+            break_contact_idx)
         # elbow finding success depends on their being good signal-to-noise
         # this checks if there will be enough clear data to analyze
         use_curve_optimization = False
@@ -279,14 +274,16 @@ class ForceGraph:
 
 
 class TapValidationError(Exception):
-
     def __init__(self, error_code, message):
         super(TapValidationError, self).__init__(message)
         self.error_code = error_code
         pass
 
     def to_dict(self):
-        return {'error_code': self.error_code, 'message': str(self)}
+        return  {
+            'error_code': self.error_code,
+            'message': str(self)
+        }
 
 
 # Move index constants. The PROBE_START move may be deleted from the trapq if
@@ -301,7 +298,6 @@ PULLBACK_END = -1
 
 
 class TapAnalysis(object):
-
     def __init__(self, samples, trigger_force):
         self._is_valid = False
         self._tap_pos = None
@@ -331,7 +327,9 @@ class TapAnalysis(object):
         return dist
 
     def _move_pos(self, move, dist):
-        return (move.start_x + (move.x_r * dist), move.start_y + (move.y_r * dist), move.start_z + (move.z_r * dist))
+        return (move.start_x + (move.x_r * dist),
+        move.start_y + (move.y_r * dist),
+        move.start_z + (move.z_r * dist))
 
     # get an XYZ position from the toolhead position history
     # positions before/after the captured history are assumed to be stationary
@@ -363,7 +361,7 @@ class TapAnalysis(object):
         # acceleration should be 0! This is the 'coasting' move:
         if homing_move.accel != 0.:
             raise TapValidationError('COASTING_MOVE_ACCELERATION',
-                                     'Probing move is accelerating/decelerating which is invalid')
+                'Probing move is accelerating/decelerating which is invalid')
         # how long did it take to get to end_z?
         homing_move.move_t = abs(
             (halt_move.start_z - homing_move.start_z) / homing_move.start_v)
@@ -372,7 +370,8 @@ class TapAnalysis(object):
     # extract and save TrapQueue moves
     def _extract_trapq(self, printer):
         trapq = printer.lookup_object('motion_report').trapqs['toolhead']
-        moves, _ = trapq.extract_trapq(float(self._time[0]), float(self._time[-1]))
+        moves, _ = trapq.extract_trapq(float(self._time[0]),
+            float(self._time[-1]))
         for move in moves:
             self._moves.append(TrapezoidalMove(move))
             # DEBUG: enable to see trapq contents
@@ -383,16 +382,22 @@ class TapAnalysis(object):
         self._extract_trapq(printer)
         num_moves = len(self._moves)
         if num_moves < 5:
-            raise TapValidationError('TOO_FEW_PROBING_MOVES', '5 Probing moves expected but there were fewer')
+            raise TapValidationError('TOO_FEW_PROBING_MOVES',
+                '5 Probing moves expected but there were fewer')
         elif num_moves > 6:
-            raise TapValidationError('TOO_MANY_PROBING_MOVES', 'More than 6 probing moves were found during the tap')
+            raise TapValidationError('TOO_MANY_PROBING_MOVES',
+                'More than 6 probing moves were found during the tap')
         self._home_end_time = self._recalculate_homing_end()
         self._pullback_start_time = self._moves[PULLBACK_START].print_time
-        self._pullback_end_time = (self._moves[PULLBACK_END].print_time + self._moves[PULLBACK_END].move_t)
+        self._pullback_end_time = (
+                self._moves[PULLBACK_END].print_time + self._moves[
+            PULLBACK_END].move_t)
         self._pullback_cruise_time = self._moves[PULLBACK_CRUISE].print_time
-        self._pullback_duration = (self._pullback_end_time - self._pullback_start_time)
-        lines, i, j = self._force_graph.tap_decompose(self._home_end_time, self._pullback_start_time,
-                                                      self._pullback_cruise_time, self._pullback_duration)
+        self._pullback_duration = (
+                self._pullback_end_time - self._pullback_start_time)
+        lines, i, j = self._force_graph.tap_decompose(self._home_end_time,
+            self._pullback_start_time, self._pullback_cruise_time,
+            self._pullback_duration)
         self._homing_start_index = i
         self._pullback_end_index = j
         self.set_tap_lines(lines)
@@ -404,15 +409,19 @@ class TapAnalysis(object):
     # validate that a set of ForcePoint objects are in chronological order
     def _validate_order(self):
         p = self._tap_points
-        if not (p[0].time < p[1].time < p[2].time < p[3].time < p[4].time < p[5].time):
-            raise TapValidationError('TAP_CHRONOLOGY', 'Tap points are out of chronological order')
+        if not (p[0].time < p[1].time < p[2].time < p[3].time < p[4].time
+                < p[5].time):
+            raise TapValidationError('TAP_CHRONOLOGY',
+                'Tap points are out of chronological order')
 
     # Validate that the rotations between lines form a tap shape
     def _validate_tap_shape(self):
         a1, a2, a3, a4 = self._tap_angles
         # with two polarities there are 2 valid tap shapes:
-        if not ((a1 > 0 and a2 < 0 and a3 < 0 and a4 > 0) or (a1 < 0 and a2 > 0 and a3 > 0 and a4 < 0)):
-            raise TapValidationError('TAP_SHAPE_INVALID', 'Force data does not form a tap shape')
+        if not ((a1 > 0 and a2 < 0 and a3 < 0 and a4 > 0) or (
+                a1 < 0 and a2 > 0 and a3 > 0 and a4 < 0)):
+            raise TapValidationError('TAP_SHAPE_INVALID',
+                'Force data does not form a tap shape')
 
     # The proposed break contact point must fall inside the
     # first 3/4s of the pullback move
@@ -422,28 +431,33 @@ class TapAnalysis(object):
         end_t = self._pullback_end_time
         safety_margin = (end_t - start_t) / 4.
         if break_contact_time < start_t:
-            raise TapValidationError('TAP_BREAK_CONTACT_TOO_EARLY', 'Tap break-contact time is too early')
+            raise TapValidationError('TAP_BREAK_CONTACT_TOO_EARLY',
+                'Tap break-contact time is too early')
         elif break_contact_time > end_t:
-            raise TapValidationError('TAP_BREAK_CONTACT_TOO_LATE', 'Tap break-contact time is too late')
+            raise TapValidationError('TAP_BREAK_CONTACT_TOO_LATE',
+                'Tap break-contact time is too late')
         elif break_contact_time > (end_t - safety_margin):
             raise TapValidationError('TAP_PULLBACK_TOO_SHORT',
-                                     'Tap break-contact time is too late, pullback move may be too '
-                                     'short')
+                'Tap break-contact time is too late, pullback move may be too '
+                'short')
 
     def _calculate_points(self):
         l1, l2, l3, l4, l5 = self._tap_lines
         # Line intersections:
-        p0 = ForcePoint(self._time[self._homing_start_index], l1.find_force(self._time[self._homing_start_index]))
+        p0 = ForcePoint(self._time[self._homing_start_index],
+            l1.find_force(self._time[self._homing_start_index]))
         p1 = l1.intersection(l2)
         p2 = l2.intersection(l3)
         p3 = l3.intersection(l4)
         p4 = l4.intersection(l5)
-        p5 = ForcePoint(self._time[self._pullback_end_index], l5.find_force(self._time[self._pullback_end_index]))
+        p5 = ForcePoint(self._time[self._pullback_end_index],
+            l5.find_force(self._time[self._pullback_end_index]))
         self._tap_points = [p0, p1, p2, p3, p4, p5]
 
     def _calculate_angles(self):
         l1, l2, l3, l4, l5 = self._tap_lines
-        self._tap_angles = [l1.angle(l2), l2.angle(l3), l3.angle(l4), l4.angle(l5)]
+        self._tap_angles = [l1.angle(l2), l2.angle(l3), l3.angle(l4),
+            l4.angle(l5)]
 
     # 'read only' fields:
     def get_time(self):
@@ -529,14 +543,14 @@ class TapAnalysis(object):
 # Orchestrate TapAnalysis and TapClassifier. Handle timing, error capture,
 # event broadcast, clients & logging
 class TapAnalysisHelper:
-
     def __init__(self, printer, name, tap_classifier):
         self._printer = printer
         self._tap_classifier = tap_classifier
         # webhooks support
         self._clients = load_cell.ApiClientHelper(printer)
         header = {"header": ["probe_tap_event"]}
-        self._clients.add_mux_endpoint("load_cell_probe/dump_taps", "load_cell_probe", name, header)
+        self._clients.add_mux_endpoint("load_cell_probe/dump_taps",
+            "load_cell_probe", name, header)
 
     def analyze(self, samples, trigger_force):
         t_start = time.time()
@@ -576,18 +590,8 @@ class TapAnalysisHelper:
 # Access a parameter from config or GCode command via a consistent interface
 # stores name and constraints to keep things DRY
 class ParamHelper:
-
-    def __init__(self,
-                 config,
-                 name,
-                 type_name,
-                 default=None,
-                 minval=None,
-                 maxval=None,
-                 above=None,
-                 below=None,
-                 max_len=None,
-                 choices=None):
+    def __init__(self, config, name, type_name, default=None, minval=None,
+            maxval=None, above=None, below=None, max_len=None, choices=None):
         self._config_section = config.get_name()
         self._config_error = config.error
         self.name = name
@@ -649,9 +653,11 @@ class ParamHelper:
                                  "choice" % (c, name))
             return self.choices[c]
         else:
-            value = config.getchoice(name, self.choices, default=self.default_choice)
+            value = config.getchoice(name, self.choices,
+                default=self.default_choice)
             # config returns the value, reverse it to get the key:
-            self.default_choice = list(self.choices.keys())[list(self.choices.values()).index(value)]
+            self.default_choice = list(self.choices.keys())[
+                list(self.choices.values()).index(value)]
             return value
 
     def _get_float_list(self, config, gcmd, above, below):
@@ -831,8 +837,6 @@ class LoadCellProbeConfigHelper:
     def __init__(self, config, load_cell_inst):
         self._printer = config.get_printer()
         self._load_cell = load_cell_inst
-        gcode = config.get_printer().lookup_object('gcode')
-        self.dummy_gcode_cmd = gcode.create_gcode_command("", "", {})
         self._sensor = load_cell_inst.get_sensor()
         self._rest_time = 1. / float(self._sensor.get_samples_per_second())
         # Collect 4 x 60hz power cycles of data to average across power noise
@@ -845,10 +849,7 @@ class LoadCellProbeConfigHelper:
             'force_safety_limit', minval=100, maxval=5000, default=2000)
         # pullback move
         self._pullback_distance_param = floatParamHelper(config,
-                                                         'pullback_distance',
-                                                         minval=0.01,
-                                                         maxval=2.0,
-                                                         default=0.2)
+            'pullback_distance', minval=0.01, maxval=2.0, default=0.2)
         sps = self._sensor.get_samples_per_second()
         self._pullback_speed_param = floatParamHelper(config, 'pullback_speed',
             minval=0.1, maxval=1.0, default=sps * 0.001)
@@ -858,7 +859,8 @@ class LoadCellProbeConfigHelper:
         self._bad_tap_retries_param = intParamHelper(config, 'bad_tap_retries',
             default=6, minval=0, maxval=max_bad_taps)
         # most probes don't move horizontally, but this one does
-        self._retry_speed = floatParamHelper(config, 'retry_speed', above=0.1, default=50.)
+        self._retry_speed = floatParamHelper(config, 'retry_speed',
+            above=0.1, default=50.)
 
     def get_tare_samples(self, gcmd=None):
         tare_time = self._tare_time_param.get(gcmd)
@@ -1120,8 +1122,8 @@ class LoadCellProbingMove:
 
 # Perform a single complete tap
 class TappingMove:
-
-    def __init__(self, config, load_cell_probing_move, tap_analysis_helper, config_helper):
+    def __init__(self, config, load_cell_probing_move, tap_analysis_helper,
+            config_helper):
         self._printer = config.get_printer()
         self._load_cell_probing_move = load_cell_probing_move
         self._tap_analysis_helper = tap_analysis_helper
@@ -1176,10 +1178,10 @@ class ProbeActivationHelper:
     def __init__(self, config):
         self._printer = config.get_printer()
         gcode_macro = self._printer.load_object(config, 'gcode_macro')
-        self._activate_gcode = gcode_macro.load_template(config,
-            'activate_gcode', '')
-        self._deactivate_gcode = gcode_macro.load_template(config,
-            'deactivate_gcode', '')
+        self._activate_gcode = gcode_macro.load_template(
+            config, 'activate_gcode', '')
+        self._deactivate_gcode = gcode_macro.load_template(
+            config, 'deactivate_gcode', '')
 
     def activate_probe(self):
         toolhead = self._printer.lookup_object('toolhead')
@@ -1287,11 +1289,13 @@ class TapSession:
     # move to probing x,y location for circular retry strategy
     def _horizontal_move(self, location, gcmd, toolhead):
         x, y = location.get_position()
-        toolhead.manual_move([x, y, None], self._config_helper.get_retry_speed(gcmd))
+        toolhead.manual_move([x, y, None],
+            self._config_helper.get_retry_speed(gcmd))
 
     def _move_right(self, gcmd, toolhead):
         pos = toolhead.get_position()
-        toolhead.manual_move([pos[0] + 2.0, pos[1], None], self._config_helper.get_retry_speed(gcmd))
+        toolhead.manual_move([pos[0] + 2.0, pos[1], None],
+            self._config_helper.get_retry_speed(gcmd))
 
     # get/update TapLocation tracking
     def _get_location(self, bad_taps, toolhead):
@@ -1313,8 +1317,10 @@ class TapSession:
 
     def _console_log_bad_tap(self, gcmd, will_retry):
         tap_analysis = self._tapping_move.get_last_analysis()
-        gcmd.respond_info('Bad tap detected: %s.%s' %
-                          (tap_analysis.get_validation_error(), '. Retrying.' if will_retry else ''))
+        gcmd.respond_info('Bad tap detected: %s.%s' % (
+            tap_analysis.get_validation_error(),
+            '. Retrying.' if will_retry else '')
+        )
 
     # probe until a single good sample is returned or retries are exhausted
     def run_probe(self, gcmd):
@@ -1338,11 +1344,12 @@ class TapSession:
             tap_analysis = self._tapping_move.get_last_analysis()
             tap_error = tap_analysis.get_validation_error()
             if strategy == STRATEGY_FAIL and not is_good:
-                raise self._printer.command_error('Tap failed: %s.' % (tap_error, ))
+                raise self._printer.command_error('Tap failed: %s.' % (
+                    tap_error,))
             if is_good or strategy == STRATEGY_IGNORE:
                 self._results.append(epos)
                 if not is_good:
-                    gcmd.respond_info('Bad tap ignored: %s.' % (tap_error, ))
+                    gcmd.respond_info('Bad tap ignored: %s.' % (tap_error,))
                 return
             location.mark_fouled()
             attempt += 1
@@ -1465,10 +1472,13 @@ class LoadCellPrinterProbe:
         sensor = sensor_class(config)
         self._load_cell = load_cell.LoadCell(config, sensor)
         # Read all user configuration and build modules
-        tap_classifier = self._lookup_object(config, 'tap_classifier_module', TapClassifierModule())
+        tap_classifier = self._lookup_object(config, 'tap_classifier_module',
+            TapClassifierModule())
         name = config.get_name()
-        self._tap_analysis_helper = TapAnalysisHelper(self._printer, name, tap_classifier)
-        nozzle_cleaner = self._lookup_object(config, 'nozzle_cleaner_module', GcodeNozzleCleaner(config))
+        self._tap_analysis_helper = TapAnalysisHelper(self._printer, name,
+            tap_classifier)
+        nozzle_cleaner = self._lookup_object(config, 'nozzle_cleaner_module',
+            GcodeNozzleCleaner(config))
         config_helper = LoadCellProbeConfigHelper(config, self._load_cell)
         self._mcu = self._load_cell.get_sensor().get_mcu()
         trigger_dispatch = mcu.TriggerDispatch(self._mcu)
@@ -1479,13 +1489,17 @@ class LoadCellPrinterProbe:
         self._cmd_helper = probe.ProbeCommandHelper(config, self)
         self._probe_offsets = probe.ProbeOffsetsHelper(config)
         self._mcu_load_cell_probe = McuLoadCellProbe(config, self._load_cell,
-                                                     continuous_tare_filter_helper.get_sos_filter(), config_helper,
-                                                     trigger_dispatch)
-        load_cell_probing_move = LoadCellProbingMove(config, self._mcu_load_cell_probe, self._param_helper,
-                                                     continuous_tare_filter_helper, config_helper)
-        self._tapping_move = TappingMove(config, load_cell_probing_move, self._tap_analysis_helper, config_helper)
-        tap_session = TapSession(config, self._tapping_move, self._param_helper, nozzle_cleaner, config_helper)
-        self._probe_session = probe.ProbeSessionHelper(config, self._param_helper, tap_session.start_probe_session)
+            continuous_tare_filter_helper.get_sos_filter(), config_helper,
+            trigger_dispatch)
+        load_cell_probing_move = LoadCellProbingMove(config,
+            self._mcu_load_cell_probe, self._param_helper,
+            continuous_tare_filter_helper, config_helper)
+        self._tapping_move = TappingMove(config, load_cell_probing_move,
+            self._tap_analysis_helper, config_helper)
+        tap_session = TapSession(config, self._tapping_move, self._param_helper,
+            nozzle_cleaner, config_helper)
+        self._probe_session = probe.ProbeSessionHelper(config,
+            self._param_helper, tap_session.start_probe_session)
         # printer integration
         LoadCellProbeCommands(config, load_cell_probing_move, tap_session)
         probe.ProbeVirtualEndstopDeprecation(config)
